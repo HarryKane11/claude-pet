@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 128 128" fill="currentColor" shape-rendering="crispEdges">
+  <path id="handle" fill-rule="evenodd" d="M44 24h40v32H44zm8 8v16h24V32z"/>
+  <path id="lid" d="M24 48h80v20H24z"/>
+  <path id="body" fill-rule="evenodd" d="M28 64h72v40H28zm8 8v24h56V72z"/>
+  <path id="eye-l" d="M44 76h8v8h-8z"/><path id="eye-r" d="M76 76h8v8h-8z"/>
+  <path id="latch" d="M58 60h12v16H58z"/>
+  <path id="foot-l" d="M32 104h20v8H32z"/><path id="foot-r" d="M76 104h20v8H76z"/>
+</svg>

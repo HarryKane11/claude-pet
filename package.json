@@ -1,0 +1,14 @@
+{
+  "name": "kibitzer-pet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A desktop pet that shows what your code agent is doing right now",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "electron": "^38.0.0"
+  }
+}

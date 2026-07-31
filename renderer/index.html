@@ -1,0 +1,379 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>kibitz pet</title>
+<style>
+  /* 창은 투명하다. 평소에 보이는 것은 캐릭터뿐 — 자세한 것은 마우스를 올렸을 때
+     **패널 하나**로만 나온다. 말풍선·툴팁·인벤토리가 각자 뜨면 서로 겹친다. */
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden;
+    font-family: -apple-system, "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+    color: #dfe5ee; }
+  body { display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-end;
+    padding: 8px; gap: 12px; }
+
+  .pet { position: relative; display: flex; align-items: flex-end; gap: 10px; cursor: pointer; }
+
+  /* ── 캐릭터 ─────────────────────────────────────────────── */
+  .char { position: relative; width: 96px; height: 108px; flex: none; }
+  .char img { position: absolute; image-rendering: pixelated; }
+  .sp { position: absolute; background-color: currentColor;
+    -webkit-mask-repeat: no-repeat; -webkit-mask-size: contain; -webkit-mask-position: center;
+    mask-repeat: no-repeat; mask-size: contain; mask-position: center;
+    image-rendering: pixelated; }
+
+  /* 좌표는 에셋의 실제 여백에서 나온다.
+     · 마크(48 박스)의 그림은 세로 10~40 에 있다 → 위쪽 여백이 박스의 21%
+     · 모자(48 박스)의 챙은 아래쪽 79% 지점에 있다
+     둘을 맞물리려면 모자 박스를 마크 박스보다 **0.58 박스만큼 위**에 둔다.
+     눈으로 맞추면 캐릭터가 바뀔 때마다 다시 틀어진다. */
+  .mark  { left: 8px;  top: 44px; width: 56px; height: 56px; }
+  /* 모자·무기는 **여러 톤**이다(외곽선 + 음영). 마스크로 그리면 단색으로 뭉개지므로
+     그림 그대로 얹는다 — 아이템이 아이템처럼 보이는 이유가 그 음영이다. */
+  .hat   { left: 8px;  top: 10px; width: 56px; height: 56px; display: none; }
+  .weapon { left: 54px; top: 46px; width: 40px; height: 40px; display: none;
+    transform-origin: 25% 80%; }
+
+  /* 마우스를 올리면 또렷해진다 — 지금 보고 있는 대상이 어느 것인지가 먼저 읽혀야 한다. */
+  .char { filter: saturate(0.85) brightness(0.94); transition: filter 120ms ease-out; }
+  .pet:hover .char { filter: saturate(1.15) brightness(1.12); }
+
+  /* 끄기 — 평소엔 없고 마우스를 올렸을 때만 나온다. */
+  .close { position: absolute; left: -6px; top: -6px; width: 18px; height: 18px;
+    border-radius: 50%; border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(20,23,30,0.95); color: rgba(255,255,255,0.6); font-size: 11px;
+    line-height: 16px; text-align: center; cursor: pointer; opacity: 0;
+    transition: opacity 120ms ease-out; }
+  .pet:hover .close { opacity: 1; }
+  .close:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+
+  .badge { position: absolute; top: 0; right: -4px; min-width: 16px; height: 16px; padding: 0 4px;
+    border-radius: 999px; background: #e5484d; color: #fff; font-size: 10px; font-weight: 700;
+    line-height: 16px; text-align: center; box-shadow: 0 0 0 2px rgba(0,0,0,0.4); display: none; }
+  /* 진행 중이라는 표시는 점이 아니라 **동작**이다 — 무기를 쓴다.
+     무기마다 쓰는 법이 다르고, 그 차이가 곧 이 펫의 성격이다. */
+  @keyframes swing {  /* 검 — 베기 */
+    0%, 100% { transform: rotate(-18deg); }
+    45% { transform: rotate(26deg); }
+    60% { transform: rotate(20deg); }
+  }
+  @keyframes cast {   /* 완드 — 끝이 떨리며 반짝 */
+    0%, 100% { transform: rotate(-8deg) scale(1); filter: brightness(1); }
+    50% { transform: rotate(-2deg) scale(1.08); filter: brightness(1.7); }
+  }
+  @keyframes draw {   /* 활 — 당겼다 놓기 */
+    0%, 100% { transform: translateX(0); }
+    55% { transform: translateX(-5px); }
+    62% { transform: translateX(3px); }
+  }
+  @keyframes smash {  /* 망치 — 들었다 내리치기 */
+    0%, 100% { transform: rotate(-34deg); }
+    40% { transform: rotate(-42deg); }
+    55% { transform: rotate(18deg); }
+    70% { transform: rotate(10deg); }
+  }
+  @keyframes stab {   /* 단검 — 짧게 찌르기 */
+    0%, 100% { transform: translate(0,0) rotate(-10deg); }
+    50% { transform: translate(6px,-3px) rotate(-4deg); }
+  }
+  .w-swing { animation: swing 620ms ease-in-out infinite; }
+  .w-cast  { animation: cast 900ms ease-in-out infinite; }
+  .w-draw  { animation: draw 800ms ease-in-out infinite; }
+  .w-smash { animation: smash 1s cubic-bezier(.3,0,.2,1) infinite; }
+  .w-stab  { animation: stab 480ms ease-in-out infinite; }
+  .waiting .weapon { animation: none !important; opacity: 0.55; }
+
+  /* 무기 타격 이펙트 — 결과가 아니라 지금 쓰는 중이라는 표시라 은은하게. */
+  .fx { position: absolute; left: 60px; top: 44px; width: 30px; height: 30px;
+    pointer-events: none; opacity: 0; }
+  .working .fx, .thinking .fx { animation: fxpulse 620ms ease-out infinite; }
+  @keyframes fxpulse {
+    0% { opacity: 0; transform: scale(0.6); }
+    40% { opacity: 0.9; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.25); }
+  }
+
+  /* ── 패널 ───────────────────────────────────────────────
+     캐릭터 왼쪽에 하나만. 열려 있는 동안 다른 떠 있는 것은 없다. */
+  .panel { position: absolute; right: 104px; bottom: 0; width: 300px;
+    padding: 10px 12px; border-radius: 14px; background: rgba(20,23,30,0.97);
+    border: 1px solid rgba(255,255,255,0.09); box-shadow: 0 8px 28px rgba(0,0,0,0.45);
+    opacity: 0; transform: translateX(6px); pointer-events: none;
+    transition: opacity 120ms ease-out, transform 120ms ease-out; }
+  .pet:hover .panel { opacity: 1; transform: translateX(0); pointer-events: auto; }
+  .panel::after { content: ""; position: absolute; left: 100%; bottom: 16px;
+    border: 6px solid transparent; border-left: 8px solid rgba(20,23,30,0.97); border-right: 0; }
+
+  .title { font-size: 11.5px; font-weight: 600; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; }
+  .say { margin-top: 3px; font-size: 11px; line-height: 1.5; display: -webkit-box;
+    -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; opacity: 0.92; }
+  /* 중간 과정은 혼잣말처럼 — 본문 아래 회색 한 줄 */
+  .step { margin-top: 4px; font-size: 10.5px; font-style: italic;
+    color: rgba(223,229,238,0.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .lvrow { margin-top: 8px; display: flex; align-items: center; gap: 6px; font-size: 10px; }
+  .lv { font-weight: 700; color: #ffd166; }
+  .xp { flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.13); overflow: hidden; }
+  .xp i { display: block; height: 100%; background: #ffd166; }
+  .obs { color: rgba(223,229,238,0.45); font-variant-numeric: tabular-nums; }
+
+  /* 인벤토리 — 칩 한 줄. 칩에 올리면 아래 상세가 바뀐다(새 창이 뜨지 않는다). */
+  .inv { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 5px; }
+  .slot { display: flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: 8px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.07);
+    font-size: 10px; cursor: default; }
+  .slot .sp { position: static; width: 12px; height: 12px; }
+  .slot:hover { background: rgba(255,255,255,0.1); }
+  /* 커스터마이징 — 모자 한 줄, 무기 한 줄. */
+  .weapons { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .prow { display: flex; gap: 4px; }
+  .wbtn { width: 28px; height: 26px; border-radius: 7px; cursor: pointer; padding: 0;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+    display: flex; align-items: center; justify-content: center; }
+  .wbtn.on { background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.45); }
+  .wbtn img { width: 20px; height: 20px; image-rendering: pixelated; }
+
+  .detail { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.07);
+    font-size: 10px; line-height: 1.5; color: rgba(223,229,238,0.6); word-break: break-all;
+    min-height: 14px; }
+
+  @keyframes bob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-3px) } }
+  @keyframes tap { 0%,100% { transform: translateY(0) } 50% { transform: translateY(2px) } }
+  .working .char { animation: tap 300ms steps(2, end) infinite; }
+  .thinking .char, .answering .char { animation: bob 2s ease-in-out infinite; }
+  .waiting .char { animation: none; opacity: 0.7; }
+
+  #quit { background: none; border: 0; color: rgba(255,255,255,0.22); font-size: 11px;
+    cursor: pointer; padding: 2px 4px; align-self: flex-end; }
+  #quit:hover { color: rgba(255,255,255,0.7); }
+
+  @media (prefers-reduced-motion: reduce) { .char { animation: none !important; } }
+</style>
+
+<div id="list"></div>
+<button id="quit" title="펫 종료">종료</button>
+
+<script>
+  const list = document.getElementById("list");
+  document.getElementById("quit").onclick = () => window.pet.quit();
+
+  const ACT = {
+    Read: "읽는 중", Grep: "찾는 중", Glob: "찾는 중", Bash: "실행 중",
+    Edit: "고치는 중", Write: "쓰는 중", WebFetch: "가져오는 중",
+    WebSearch: "찾는 중", Agent: "맡기는 중",
+  };
+  const STATE = {
+    thinking: "결과를 읽는 중", working: "도구를 돌리는 중", answering: "답을 쓰는 중",
+    waiting: "사람을 기다리는 중", idle: "쉬는 중",
+  };
+  const TONE = ["#3478f6", "#8b5cf6", "#0ea897", "#e79a18", "#d97757"];
+
+  /* 장비 도감 — 사람이 고른다. 고른 값은 남는다.
+     `anim` 은 무기를 쓰는 법이고, `fx` 는 그때 튀는 이펙트다. */
+  const WEAPONS = [
+    { id: "sword",  file: "weapon-sword",  label: "검",     anim: "swing", fx: "fx-hit-slash", tint: "#cfd8e8" },
+    { id: "dagger", file: "weapon-dagger", label: "단검",   anim: "stab",  fx: "fx-impact",    tint: "#b8c4d8" },
+    { id: "wand",   file: "weapon-wand",   label: "완드",   anim: "cast",  fx: "fx-spark",     tint: "#7c5cd6" },
+    { id: "staff",  file: "weapon-staff",  label: "스태프", anim: "cast",  fx: "fx-spark",     tint: "#5ce0d0" },
+    { id: "bow",    file: "weapon-bow",    label: "활",     anim: "draw",  fx: "fx-waves",     tint: "#a9743c" },
+    { id: "hammer", file: "weapon-hammer", label: "망치",   anim: "smash", fx: "fx-impact",    tint: "#9aa4b8" },
+  ];
+  const HATS = [
+    { id: "wizard", file: "hat-wizard", label: "마법사 모자" },
+    { id: "priest", file: "hat-priest", label: "사제 모자" },
+    { id: "witch",  file: "hat-witch",  label: "마녀 모자" },
+    { id: "royal",  file: "hat-royal",  label: "황금 모자" },
+    { id: "crown",  file: "hat-crown",  label: "왕관" },
+  ];
+  const pick = (list, key) => list.find((x) => x.id === localStorage.getItem(key)) || list[0];
+  const weaponOf = () => pick(WEAPONS, "kb-weapon");
+  const hatOf = () => pick(HATS, "kb-hat");
+  const hidden = new Set(JSON.parse(localStorage.getItem("kb-hidden") || "[]"));
+
+  const plain = (t) => String(t || "")
+    .replace(/`{1,3}([^`]*)`{1,3}/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/^#{1,6}\s*/gm, "")
+    .replace(/\n{2,}/g, "\n")
+    .trim();
+  const esc = (t) => String(t).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
+
+  /** 알림 — **답변이 끝났을 때**만 는다. 도구를 돌리다 멈춘 것은 아직 하는 중이다. */
+  const unseen = new Map();
+  const wasDone = new Map();
+  const nodes = new Map();
+
+  /* 끌어서 옮기기. 4px 이상 움직였으면 클릭이 아니라 이동이다. */
+  let drag = null;
+  document.addEventListener("mousedown", (e) => {
+    if (e.target.closest("#quit") || e.target.closest(".panel")) return;
+    drag = { x: e.screenX, y: e.screenY, moved: 0 };
+  });
+  document.addEventListener("mousemove", (e) => {
+    if (!drag) return;
+    const dx = e.screenX - drag.x, dy = e.screenY - drag.y;
+    if (dx || dy) {
+      drag.moved += Math.abs(dx) + Math.abs(dy);
+      window.pet.drag(dx, dy);
+      drag.x = e.screenX; drag.y = e.screenY;
+    }
+  });
+  document.addEventListener("mouseup", () => { if (drag) setTimeout(() => (drag = null), 0); });
+  const wasDrag = () => Boolean(drag && drag.moved > 4);
+
+  function mask(node, file) {
+    const url = `url(assets/${file}.svg)`;
+    node.style.webkitMaskImage = url;
+    node.style.maskImage = url;
+  }
+
+  function ensure(id) {
+    let n = nodes.get(id);
+    if (n) return n;
+    n = document.createElement("div");
+    n.className = "pet";
+    n.innerHTML = `
+      <div class="panel">
+        <div class="title"></div>
+        <div class="say"></div>
+        <div class="step"></div>
+        <div class="lvrow">
+          <span class="lv"></span><span class="xp"><i></i></span><span class="obs"></span>
+        </div>
+        <div class="inv"></div>
+        <div class="detail"></div>
+        <div class="weapons"></div>
+      </div>
+      <div class="char">
+        <span class="sp mark"></span>
+        <img class="hat" alt="" />
+        <img class="weapon" alt="" />
+        <span class="sp fx"></span>
+        <span class="badge"></span>
+        <span class="close" title="이 펫 숨기기">×</span>
+      </div>`;
+    list.appendChild(n);
+    nodes.set(id, n);
+    return n;
+  }
+
+  window.pet.onAgents((agents) => {
+    const seen = new Set();
+
+    for (const a of agents || []) {
+      const id = a.sessionId || a.source;
+      if (hidden.has(id)) continue;
+      seen.add(id);
+      const n = ensure(id);
+      n.className = `pet ${a.state}`;
+      const q = (s) => n.querySelector(s);
+
+      const done = a.state === "waiting" && a.endedWithAnswer;
+      if (done && !wasDone.get(id)) unseen.set(id, (unseen.get(id) || 0) + 1);
+      wasDone.set(id, done);
+
+      mask(q(".mark"), a.source === "codex" ? "character-mark-codex" : "character-mark-claude-code");
+      q(".mark").style.color = a.source === "codex" ? "#e6ecf5" : "#d97757";
+      // 모자는 플러그인이 깔려 있을 때. 종류는 사람이 고른 것.
+      const ht = hatOf();
+      const hat = q(".hat");
+      hat.src = `assets/${ht.file}.svg`;
+      hat.style.display = a.plugins.length ? "block" : "none";
+
+      // 무기는 스킬이 깔려 있을 때 든다.
+      const wp = weaponOf();
+      const weapon = q(".weapon");
+      weapon.src = `assets/${wp.file}.svg`;
+      weapon.style.display = a.skills.length ? "block" : "none";
+      weapon.className = `weapon w-${wp.anim}`;
+      const fx = q(".fx");
+      mask(fx, wp.fx);
+      fx.style.color = wp.tint;
+      fx.style.display = a.skills.length ? "block" : "none";
+
+      const count = unseen.get(id) || 0;
+      const badge = q(".badge");
+      badge.textContent = count > 9 ? "9+" : String(count);
+      badge.style.display = count > 0 ? "block" : "none";
+
+      q(".title").textContent = a.title || a.source;
+      q(".say").textContent = plain(a.lastSay || a.lastPrompt) || "";
+      q(".step").textContent = a.tool ? `${a.tool} ${ACT[a.tool] || "쓰는 중"}` : STATE[a.state] || "";
+
+      q(".lv").textContent = `Lv.${a.level ?? 1}`;
+      q(".xp i").style.width = `${Math.min(100, ((a.xp ?? 0) / (a.need ?? 1)) * 100)}%`;
+      const fmtTok = (n) =>
+        n >= 1e12 ? `${(n / 1e12).toFixed(2)}조`
+        : n >= 1e8 ? `${(n / 1e8).toFixed(1)}억`
+        : n >= 1e4 ? `${(n / 1e4).toFixed(1)}만`
+        : String(n ?? 0);
+      q(".obs").textContent = a.maxed
+        ? `만렙 · ${fmtTok(a.totalTokens)} 토큰`
+        : `${fmtTok(a.totalTokens)} 토큰`;
+      q(".lv").title = `누적 ${(a.totalTokens ?? 0).toLocaleString()} 토큰 · 이 세션 ${(a.tokens ?? 0).toLocaleString()}`;
+
+      const slots = [
+        { file: "garment-badge", label: "스킬", items: a.skills },
+        { file: "garment-plugin-hat", label: "플러그인", items: a.plugins },
+        { file: "companion-toolbox", label: "MCP", items: a.mcp },
+        { file: "garment-clipboard", label: "규칙", items: a.rules ? [`${a.rules}개 로드됨`] : [] },
+        // 지금 밖에 나가 있는 하위 에이전트. 돌아오면 사라진다.
+        { file: "character-mark-claude-code", label: "분신", items: a.subagents ? [`${a.subagents}개 작업 중`] : [] },
+      ].filter((x) => x.items.length);
+
+      q(".inv").innerHTML = slots
+        .map((sl, k) => `<span class="slot" data-k="${k}" style="color:${TONE[k]}">
+            <span class="sp" style="-webkit-mask-image:url(assets/${sl.file}.svg);mask-image:url(assets/${sl.file}.svg)"></span>
+            <span style="color:#dfe5ee">${sl.label} ${sl.items.length}</span>
+          </span>`)
+        .join("");
+
+      q(".close").onclick = (ev) => {
+        ev.stopPropagation();
+        hidden.add(id);
+        localStorage.setItem("kb-hidden", JSON.stringify([...hidden]));
+        n.remove();
+        nodes.delete(id);
+      };
+
+      const detail = q(".detail");
+      const show = (k) => {
+        const sl = slots[k];
+        detail.textContent = sl
+          ? sl.items.slice(0, 14).map(esc).join(" · ") + (sl.items.length > 14 ? ` +${sl.items.length - 14}` : "")
+          : "";
+      };
+      show(0);
+      for (const el of q(".inv").querySelectorAll(".slot")) {
+        el.onmouseenter = () => show(Number(el.dataset.k));
+      }
+
+      // 무기 고르기 — 패널 안에서. 고른 값은 다음에도 유지된다.
+      const row = (items, cur, key) =>
+        items
+          .map((it) => `<button class="wbtn${it.id === cur.id ? " on" : ""}" data-k="${key}"
+            data-v="${it.id}" title="${it.label}"><img src="assets/${it.file}.svg" alt=""></button>`)
+          .join("");
+      const picker = q(".weapons");
+      picker.innerHTML = `<div class="prow">${row(HATS, ht, "kb-hat")}</div>
+        <div class="prow">${row(WEAPONS, wp, "kb-weapon")}</div>`;
+      for (const b of picker.querySelectorAll(".wbtn")) {
+        b.onclick = (ev) => {
+          ev.stopPropagation();
+          localStorage.setItem(b.dataset.k, b.dataset.v);
+        };
+      }
+
+      n.onclick = (ev) => {
+        if (wasDrag() || ev.target.closest(".panel")) return;
+        unseen.set(id, 0);
+        badge.style.display = "none";
+        window.pet.openSession(a.sessionId, ev.altKey);
+      };
+      n.title = "클릭: 이 대화방 열기 · ⌥클릭: kibitz 에서 보기 · 끌어서 이동";
+    }
+
+    for (const [id, node] of nodes) {
+      if (!seen.has(id)) { node.remove(); nodes.delete(id); }
+    }
+  });
+</script>

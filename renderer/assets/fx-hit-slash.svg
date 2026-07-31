@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 128 128" fill="currentColor" shape-rendering="crispEdges">
+  <path id="slash" d="M88 8h24v16H96v16H80v16H64v16H48v16H32v16H16V88h8V72h16V56h16V40h16V24h16z"/>
+  <path id="slash-chip-1" d="M88 56h16v16H88z" opacity=".6"/>
+  <path id="slash-chip-2" d="M56 88h12v12H56z" opacity=".35"/>
+</svg>

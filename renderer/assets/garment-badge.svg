@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 48 48" fill="currentColor" stroke="none" shape-rendering="crispEdges">
+  <!-- Pixel sword: equipped when a skill is installed or opened. -->
+  <g fill="currentColor" stroke="none">
+    <path d="M36 4h8v8h-4v4h-4v4h-4v4h-4v4h-4v4h-8v-8h4v-4h4v-4h4v-4h4V8h4z"/>
+    <path d="M10 26h6v6h6v6h-6v6h-6v-6H4v-6h6z"/>
+  </g>
+</svg>
