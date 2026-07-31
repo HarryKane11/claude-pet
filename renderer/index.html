@@ -34,7 +34,7 @@
 
   /* 마우스를 올리면 또렷해진다 — 지금 보고 있는 대상이 어느 것인지가 먼저 읽혀야 한다. */
   .char { filter: saturate(0.85) brightness(0.94); transition: filter 120ms ease-out; }
-  .pet:hover .char { filter: saturate(1.15) brightness(1.12); }
+  .pet:hover .char, .pet.pinned .char { filter: saturate(1.15) brightness(1.12); }
 
   /* 끄기 — 평소엔 없고 마우스를 올렸을 때만 나온다. */
   .close { position: absolute; left: -6px; top: -6px; width: 18px; height: 18px;
@@ -42,7 +42,7 @@
     background: rgba(20,23,30,0.95); color: rgba(255,255,255,0.6); font-size: 11px;
     line-height: 16px; text-align: center; cursor: pointer; opacity: 0;
     transition: opacity 120ms ease-out; }
-  .pet:hover .close { opacity: 1; }
+  .pet:hover .close, .pet.pinned .close { opacity: 1; }
   .close:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
 
   .badge { position: absolute; top: 0; right: -4px; min-width: 16px; height: 16px; padding: 0 4px;
@@ -98,7 +98,9 @@
     border: 1px solid rgba(255,255,255,0.09); box-shadow: 0 8px 28px rgba(0,0,0,0.45);
     opacity: 0; transform: translateX(6px); pointer-events: none;
     transition: opacity 120ms ease-out, transform 120ms ease-out; }
-  .pet:hover .panel { opacity: 1; transform: translateX(0); pointer-events: auto; }
+  .pet:hover .panel, .pet.pinned .panel { opacity: 1; transform: translateX(0); pointer-events: auto; }
+  /* 고정되면 테두리가 또렷해진다 — 지금 이 패널이 마우스를 떼도 남는다는 표시. */
+  .pet.pinned .panel { border-color: rgba(255,255,255,0.22); }
   .panel::after { content: ""; position: absolute; left: 100%; bottom: 16px;
     border: 6px solid transparent; border-left: 8px solid rgba(20,23,30,0.97); border-right: 0; }
 
@@ -124,6 +126,12 @@
   .slot .sp { position: static; width: 12px; height: 12px; }
   .slot:hover { background: rgba(255,255,255,0.1); }
   /* 커스터마이징 — 모자 한 줄, 무기 한 줄. */
+  /* 대화방으로 — 캐릭터 클릭은 이제 패널 고정이라, 이동은 버튼이 맡는다. */
+  .open { margin-top: 8px; width: 100%; padding: 5px 0; border-radius: 8px; cursor: pointer;
+    background: rgba(76,141,246,0.16); border: 1px solid rgba(76,141,246,0.35);
+    color: #cfe0ff; font-size: 10.5px; font-family: inherit; }
+  .open:hover { background: rgba(76,141,246,0.28); }
+
   .weapons { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
   .prow { display: flex; gap: 4px; }
   .wbtn { width: 28px; height: 26px; border-radius: 7px; cursor: pointer; padding: 0;
@@ -201,6 +209,7 @@
   const unseen = new Map();
   const wasDone = new Map();
   const nodes = new Map();
+  const pinned = new Set();
 
   /* 끌어서 옮기기. 4px 이상 움직였으면 클릭이 아니라 이동이다. */
   let drag = null;
@@ -242,6 +251,7 @@
         <div class="inv"></div>
         <div class="detail"></div>
         <div class="weapons"></div>
+        <button class="open"></button>
       </div>
       <div class="char">
         <span class="sp mark"></span>
@@ -363,13 +373,24 @@
         };
       }
 
+      // 캐릭터 클릭 = 패널 고정. 아이템을 고르는 동안 패널이 닫히면 고를 수가 없다.
       n.onclick = (ev) => {
         if (wasDrag() || ev.target.closest(".panel")) return;
+        n.classList.toggle("pinned");
+        pinned.has(id) ? pinned.delete(id) : pinned.add(id);
         unseen.set(id, 0);
         badge.style.display = "none";
+      };
+      if (pinned.has(id)) n.classList.add("pinned");
+      n.title = "클릭: 패널 고정 · 끌어서 이동";
+
+      const open = q(".open");
+      open.textContent = "이 대화방 열기";
+      open.onclick = (ev) => {
+        ev.stopPropagation();
         window.pet.openSession(a.sessionId, ev.altKey);
       };
-      n.title = "클릭: 이 대화방 열기 · ⌥클릭: kibitz 에서 보기 · 끌어서 이동";
+      open.title = "⌥클릭: kibitz 대시보드에서 보기";
     }
 
     for (const [id, node] of nodes) {
