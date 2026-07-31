@@ -213,6 +213,25 @@ function textOf(content) {
     .join(" ");
 }
 
+/**
+ * 설치된 플러그인 — **파일에서 직접**.
+ *
+ * 세션의 스킬 목록에서 `플러그인명:스킬명` 접두어를 긁어 쓰다가, 목록 형식이 다른
+ * 세션(프로젝트 스코프 목록 등)에서는 하나도 못 찾아 모자가 사라졌다. 설치 목록은
+ * `~/.claude/plugins/installed_plugins.json` 에 그대로 있다 — 프롬프트 블록을
+ * 파싱해 추측할 이유가 없다.
+ */
+function installedPlugins() {
+  try {
+    const file = path.join(os.homedir(), ".claude", "plugins", "installed_plugins.json");
+    const json = JSON.parse(fs.readFileSync(file, "utf8"));
+    // 키는 `플러그인@마켓플레이스` 형식이다. 사람이 부르는 이름은 앞부분이다.
+    return Object.keys(json.plugins || {}).map((k) => k.split("@")[0]);
+  } catch {
+    return [];
+  }
+}
+
 /** 지금 무엇을 하는 중인가. 마지막 이벤트가 무엇이냐로 끝난다 — 추론하지 않는다. */
 function readClaudeCode(found) {
   if (!found) return null;
@@ -311,6 +330,8 @@ function readClaudeCode(found) {
   if (Date.now() - Date.parse(at) > 30_000) state = "waiting";
 
   const uniq = (xs) => [...new Set(xs)];
+  // 세션 목록에서 찾은 것과 설치 파일을 합친다. 어느 한쪽만 보면 놓친다.
+  const allPlugins = uniq([...plugins, ...installedPlugins()]);
   const counts = countIncremental(found.path);
   // 레벨은 이 세션이 아니라 **여태 쓴 전부**로 정해진다.
   const lv = levelFor(totalTokens());
@@ -332,7 +353,7 @@ function readClaudeCode(found) {
     at,
     mcp: uniq(mcp),
     skills: uniq(skills),
-    plugins: uniq(plugins),
+    plugins: allPlugins,
     rules: uniq(rules).length,
     requests: counts.requests,
     endedWithAnswer,
