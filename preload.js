@@ -9,6 +9,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("pet", {
   onAgents: (fn) => ipcRenderer.on("agents", (_e, agents, nudge, chatter) => fn(agents, nudge, chatter)),
   quit: () => ipcRenderer.send("quit"),
+  alive: () => ipcRenderer.send("alive"),
   openSession: (id, dashboard) => ipcRenderer.send("open-session", id, dashboard === true),
   drag: (dx, dy) => ipcRenderer.send("drag", dx, dy),
   setInteractive: (on) => ipcRenderer.send("interactive", on),

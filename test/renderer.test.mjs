@@ -289,3 +289,24 @@ test("말풍선이 있으면 혼잣말은 건너뛴다", () => {
   assert.ok(pet.querySelector(".nudge").classList.contains("on"));
   assert.equal(pet.querySelector(".mutter").classList.contains("on"), false, "둘이 겹치면 어느 쪽도 안 읽힌다");
 });
+
+test("살아 있다는 보고는 갱신을 다 마친 뒤에 나온다", () => {
+  const app = runRenderer();
+  let beats = 0;
+  app.sandbox.window.pet.alive = () => (beats += 1);
+  app.push([AGENT]);
+  assert.equal(beats, 1, "한 번 갱신에 한 번");
+
+  // 갱신 도중 터지면 보고도 없어야 한다 — 그게 심장박동의 존재 이유다.
+  // 말풍선을 그리다 터뜨린다. 상태는 멀쩡히 남으므로 뒤따르는 갱신에는 영향이 없다.
+  const brokenNudge = { kind: "waiting", showMs: 12000, get text() { throw new Error("갱신 중 사고"); } };
+  try {
+    app.push([AGENT], brokenNudge);
+  } catch {
+    /* 실제 렌더러에서는 콜백이 통째로 죽는다 */
+  }
+  assert.equal(beats, 1, "터진 갱신은 살아 있다고 보고하지 않는다");
+
+  app.push([AGENT]);
+  assert.equal(beats, 2, "다시 정상으로 돌면 보고도 돌아온다");
+});

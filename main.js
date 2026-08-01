@@ -106,10 +106,27 @@ function createWindow() {
   powerMonitor.on("suspend", pause);
   powerMonitor.on("resume", resume);
 
+  /* 렌더러가 죽어도 창은 그대로 떠 있는다 — 흰 화면으로. 이 저장소에서 이미
+     두 번 겪었고, 그때마다 프로세스는 멀쩡해 보였다. 그래서 프로세스가 살아
+     있다는 것만으로는 아무것도 증명되지 않는다. */
+  win.webContents.on("render-process-gone", () => {
+    if (!quitting && win && !win.isDestroyed()) win.reload();
+  });
+  win.on("unresponsive", () => {
+    if (!quitting && win && !win.isDestroyed()) win.reload();
+  });
+
+  win.on("close", (e) => {
+    // 펫 창은 사람이 종료를 누를 때만 닫힌다.
+    if (quitting) return;
+    e.preventDefault();
+  });
+
   win.on("closed", () => {
     if (timer) clearInterval(timer);
     timer = null;
     win = null;
+    revive();
   });
 }
 
@@ -122,6 +139,7 @@ ipcMain.handle("pets", () => listPets());
 ipcMain.handle("settings:get", () => settings.load());
 ipcMain.handle("settings:set", (_e, patch) => {
   const next = settings.save(patch || {});
+  applyAutostart(next);
   // 두 창이 같은 값을 봐야 한다. 설정 창에서 캐릭터를 바꾸면 펫도 즉시 바뀐다.
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send("settings", next);
   return next;
@@ -176,7 +194,84 @@ ipcMain.on("settings:open", () => {
   panel.on("closed", () => (panel = null));
 });
 
-ipcMain.on("quit", () => app.quit());
+/**
+ * 끄는 것은 사람만 한다.
+ *
+ * 그 전까지는 무슨 일이 있어도 다시 세운다 — 창이 닫혀도, 렌더러가 죽어도,
+ * 설정 창을 닫아도. 화면 구석에 있어야 할 것이 조용히 사라지면, 사라졌다는
+ * 사실조차 한참 뒤에 알게 된다.
+ */
+let quitting = false;
+
+/**
+ * 로그인할 때 자동으로 뜨게.
+ *
+ * 앱이 살아남는 것과 기계가 꺼졌다 켜지는 것은 다른 문제다. 앞은 우리가
+ * 책임지지만, 뒤는 사람이 켜 주기 전에는 하지 않는다.
+ */
+function applyAutostart(cfg) {
+  if (process.platform === "linux") return; // 배포판마다 방식이 다르다
+  const want = cfg.autostart === true;
+  let now = false;
+  try {
+    now = app.getLoginItemSettings().openAtLogin === true;
+  } catch {
+    return;
+  }
+  // 이미 그 상태면 건드리지 않는다. `false` 로 다시 쓰는 것만으로도 서명 안 된
+  // 빌드에서는 "Operation not permitted" 가 난다.
+  if (want === now) return;
+  try {
+    app.setLoginItemSettings({ openAtLogin: want, openAsHidden: true });
+  } catch {
+    /* 아래에서 실제 상태를 다시 읽는다 */
+  }
+  // **정말 걸렸는지 다시 읽어서** 설정에 반영한다. 안 걸렸는데 켜졌다고
+  // 표시하면, 다음 부팅에 펫이 없는 것을 보고서야 알게 된다.
+  try {
+    const real = app.getLoginItemSettings().openAtLogin === true;
+    if (real !== want) settings.save({ autostart: real });
+  } catch {
+    /* 읽지도 못하면 그대로 둔다 */
+  }
+}
+
+/** 없으면 다시 세운다. 껐다고 착각하고 사라져 있는 것이 가장 나쁘다. */
+function revive() {
+  if (quitting) return;
+  if (!win || win.isDestroyed()) setTimeout(() => !quitting && createWindow(), 400);
+}
+
+/**
+ * 심장박동.
+ *
+ * 렌더러가 예외로 죽으면 창은 떠 있고 프로세스도 살아 있는데 화면만 빈다.
+ * 이 저장소에서 실제로 그랬고, `pgrep` 만 보고 고쳤다고 말한 적이 있다.
+ * 그래서 렌더러가 스스로 살아 있다고 말하게 하고, 말이 끊기면 다시 띄운다.
+ */
+let lastBeat = Date.now();
+const BEAT_TIMEOUT = 60_000;
+ipcMain.on("alive", () => {
+  lastBeat = Date.now();
+});
+let revives = 0;
+setInterval(() => {
+  if (quitting || !win || win.isDestroyed()) return;
+  if (Date.now() - lastBeat < BEAT_TIMEOUT) {
+    revives = 0;
+    return;
+  }
+  // 다시 띄워도 계속 죽는다면 그건 일시적 사고가 아니라 버그다. 그때는 간격을
+  // 늘린다 — 고쳐지지도 않는 것을 1분마다 다시 띄우면 화면만 깜빡인다.
+  if (revives >= 5 && Date.now() - lastBeat < 5 * 60_000) return;
+  revives += 1;
+  lastBeat = Date.now();
+  win.reload();
+}, 15_000);
+ipcMain.on("quit", () => {
+  quitting = true;
+  app.quit();
+});
 
 /** 커서가 캐릭터·패널 위에 있는 동안만 클릭을 받는다. */
 ipcMain.on("interactive", (_e, on) => {
@@ -240,11 +335,26 @@ if (!app.requestSingleInstanceLock()) {
 
 app.whenReady().then(() => {
   if (process.platform === "darwin" && app.dock) app.dock.hide();
+  applyAutostart(settings.load());
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
-// 창을 닫아도 앱이 살아 있을 이유가 없다.
-app.on("window-all-closed", () => app.quit());
+/* 창이 다 닫혀도 끄지 않는다.
+   설정 창을 닫는 순간 펫까지 사라지던 길이 여기 있었다 — `window-all-closed` 는
+   "마지막 창" 을 세지, 어느 창인지는 보지 않는다. */
+app.on("window-all-closed", () => {
+  if (quitting) app.quit();
+});
+
+app.on("before-quit", (e) => {
+  if (quitting) return;
+  // 사람이 종료를 누르지 않았다면 이건 사고다. 대신 설정 창만 닫아 준다.
+  e.preventDefault();
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (w !== win) w.close();
+  }
+  revive();
+});

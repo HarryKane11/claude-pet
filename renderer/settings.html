@@ -113,6 +113,18 @@
     <h2>상태</h2>
     <p class="sub">지금 무엇을 보고 있는지.</p>
     <div class="card"><table id="stat"></table></div>
+    <div class="card">
+      <div class="row">
+        <div class="grow">
+          <div>로그인할 때 자동으로 켜기</div>
+          <div class="muted">
+            펫은 혼자 꺼지지 않는다 — 창을 닫아도, 화면이 죽어도 다시 세운다.
+            다만 기계를 껐다 켜는 것까지는 이걸 켜 둬야 따라온다.
+          </div>
+        </div>
+        <button class="act" id="auto"></button>
+      </div>
+    </div>
     <p class="note">
       설정은 <code>~/.kibitz-pet/settings.json</code> 에 있다. 직접 열어 고쳐도 된다.
     </p>
@@ -246,6 +258,16 @@
     }
   }
 
+  function drawAuto() {
+    const b = $("#auto");
+    b.textContent = cfg.autostart ? "켜짐" : "꺼짐";
+    b.classList.toggle("yes", !!cfg.autostart);
+    b.onclick = async () => {
+      cfg = await window.pet.setSettings({ autostart: !cfg.autostart });
+      drawAuto();
+    };
+  }
+
   /* ── 상태 ── */
   async function drawStatus() {
     const c = await window.pet.curatorState();
@@ -259,6 +281,7 @@
       ["큐레이터 마지막 실행", when(c.lastRun)],
       ["큐레이터 누적", `${c.runs || 0}회 · $${(c.cost || 0).toFixed(3)}`],
     ].map(([k, v]) => `<tr><td>${k}</td><td>${esc(v)}</td></tr>`).join("");
+    drawAuto();
   }
 
   /* ── 시작 ── */

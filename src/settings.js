@@ -26,6 +26,9 @@ const DEFAULTS = {
   pet: "", // 빈 값이면 깔린 것 중에서 알아서
   hat: "wizard",
   weapon: "sword",
+  // 로그인할 때 자동으로 뜬다. 기본은 꺼 둔다 — 묻지 않고 시작 프로그램에
+  // 끼어드는 앱은 신뢰를 잃는다.
+  autostart: false,
 };
 
 let cache = null;

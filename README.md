@@ -156,6 +156,21 @@ memories was never something a bubble that vanishes in twelve seconds could do.
 
 Settings live in `~/.kibitz-pet/settings.json`; edit it by hand if you prefer.
 
+**It doesn't leave on its own.** Close the window and it comes back; the renderer
+crashes and it reloads; the settings window closes and the pet stays. The only
+way out is the quit button — something that lives in the corner of your screen
+shouldn't be able to vanish quietly, because you'd notice long after it did.
+
+A heartbeat covers the failure that isn't a crash: a renderer that throws keeps
+its window up and its process alive while the panel sits there empty. It reports
+in only after a full update completes, so a broken one goes quiet and gets
+reloaded.
+
+Surviving a reboot is a separate question, and one we don't answer without being
+asked — the login-item toggle is in **상태**, off by default. It reads the setting
+back after writing it, so if the OS refuses (unsigned builds do), the switch says
+off instead of lying to you.
+
 ## Equipment
 
 Without a sprite pack the character is the agent's own mark, and gear is worn
