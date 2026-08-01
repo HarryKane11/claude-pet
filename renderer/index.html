@@ -262,19 +262,16 @@
     .zzz { opacity: 0.6 !important; animation: none !important; }
   }
 
-  #quit { background: none; border: 0; color: rgba(255,255,255,0.22); font-size: 11px;
-    cursor: pointer; padding: 2px 4px; align-self: flex-end; }
-  #quit:hover { color: rgba(255,255,255,0.7); }
-
   @media (prefers-reduced-motion: reduce) { .char { animation: none !important; } }
 </style>
 
 <div id="list"></div>
-<button id="quit" title="펫 종료">종료</button>
+<!-- 종료 버튼은 여기 없다.
+     화면에 늘 떠 있는 맨 버튼이었고 확인도 없었다 — 스쳐 눌리면 그걸로 끝이다.
+     끄는 것처럼 되돌리기 어려운 일은 설정 창에서 한다. -->
 
 <script>
   const list = document.getElementById("list");
-  document.getElementById("quit").onclick = () => window.pet.quit();
 
   /* 대사집.
      명사(도구·파일 이름)는 기록에서 오고 우리가 붙이는 건 말투뿐이다. 여러 개를
@@ -372,7 +369,7 @@
   let interactive = false;
   function updateInteractive(x, y) {
     const el = document.elementFromPoint(x, y);
-    const hit = Boolean(el && el.closest(".pet, #quit"));
+    const hit = Boolean(el && el.closest(".pet"));
     if (hit !== interactive) {
       interactive = hit;
       window.pet.setInteractive(hit);
@@ -390,7 +387,7 @@
   /* 끌어서 옮기기. 4px 이상 움직였으면 클릭이 아니라 이동이다. */
   let drag = null;
   document.addEventListener("mousedown", (e) => {
-    if (e.target.closest("#quit") || e.target.closest(".panel")) return;
+    if (e.target.closest(".panel")) return;
     drag = { x: e.screenX, y: e.screenY, moved: 0 };
   });
   document.addEventListener("mousemove", (e) => {

@@ -158,6 +158,11 @@ Everything the pet owns lives in `~/.claude-pet/` — `settings.json`,
 `HEARTBEAT.md`, `SOUL.md`, and the memory queue. All plain text, all yours to
 edit.
 
+The way out is **설정 → 상태 → 종료**, and it asks once before it goes. There is
+no quit button floating on the desktop — a bare button sitting on your screen
+with no confirmation undoes everything else on this list the first time your
+cursor brushes it.
+
 **It doesn't leave on its own.** Close the window and it comes back; the renderer
 crashes and it reloads; the settings window closes and the pet stays. The only
 way out is the quit button — something that lives in the corner of your screen

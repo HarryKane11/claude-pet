@@ -135,6 +135,17 @@
       </div>
       <div class="muted" id="beatwarn" style="margin-top:8px"></div>
     </div>
+    <div class="card">
+      <div class="row">
+        <div class="grow">
+          <div>펫 끄기</div>
+          <div class="muted">
+            여기가 나가는 유일한 길이다. 다시 켜려면 <code>npx claude-pet</code>.
+          </div>
+        </div>
+        <button class="act" id="quit">종료</button>
+      </div>
+    </div>
     <p class="note">
       설정은 <code>~/.claude-pet/settings.json</code>, 일정은
       <code>~/.claude-pet/HEARTBEAT.md</code>, 목소리는
@@ -315,6 +326,21 @@
       }
     };
   }
+
+  // 되돌리기 어려운 일은 한 번 더 묻는다.
+  $("#quit").onclick = () => {
+    const b = $("#quit");
+    if (b.dataset.sure !== "1") {
+      b.dataset.sure = "1";
+      b.textContent = "정말 끌까?";
+      setTimeout(() => {
+        b.dataset.sure = "";
+        b.textContent = "종료";
+      }, 4000);
+      return;
+    }
+    window.pet.quit();
+  };
 
   function drawAuto() {
     const b = $("#auto");

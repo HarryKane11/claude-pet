@@ -310,3 +310,14 @@ test("살아 있다는 보고는 갱신을 다 마친 뒤에 나온다", () => {
   app.push([AGENT]);
   assert.equal(beats, 2, "다시 정상으로 돌면 보고도 돌아온다");
 });
+
+test("오버레이에는 종료 버튼이 없다", () => {
+  const app = runRenderer();
+  app.push([AGENT]);
+  // 화면에 늘 떠 있는 맨 버튼이 앱을 끄면, 안 꺼지게 만든 나머지가 다 무의미하다.
+  assert.equal(app.doc.getElementById("quit")._cls.size, 0);
+  let quit = false;
+  app.sandbox.window.pet.quit = () => (quit = true);
+  app.push([AGENT], { kind: "waiting", text: "다 썼어", showMs: 1000 });
+  assert.equal(quit, false, "평범한 갱신으로는 절대 꺼지지 않는다");
+});
