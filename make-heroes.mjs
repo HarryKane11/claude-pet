@@ -19,9 +19,19 @@ import { makeGrid, put, rect, line, outline, INK, WHITE, bakeSheet, writeSheet }
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(HERE, "renderer", "pets");
 
+/* 몸은 24×26 에 그린다 — 리그 좌표를 그대로 두기 위해서다. 그다음 두 배로 펴서
+   48×52 에 얹고, **거기서부터 세밀한 것을 얹는다.** 셀은 여전히 192×208 이라
+   codex-pets 규격을 지키면서 쓸 수 있는 픽셀만 네 배가 된다.
+
+   처음부터 48×52 에 그리려면 모든 좌표 상수를 두 배로 고쳐야 하는데, 그러면
+   지금까지 맞춰 놓은 비율이 한 번에 다 틀어진다. 굵은 형태는 그대로 두고
+   디테일만 새 격자에서 더하는 쪽이 안전하다. */
 const G = 24;
 const GH = 26;
-const S = 8;
+const U = 2; // 확대 배수
+const FG = G * U; // 48
+const FGH = GH * U; // 52
+const S = 4; // 최종 배율 → 192×208
 const COLS = 6;
 
 /* ── 리그 ──────────────────────────────────────────────────
@@ -642,21 +652,132 @@ function frameOf(h, row, i) {
   return g;
 }
 
+/* ── 진화 ──────────────────────────────────────────────────
+   레벨이 올라도 캐릭터가 그대로면 레벨은 그냥 숫자다. 포켓몬이 오래 가는 이유는
+   숫자가 아니라 **모습이 바뀌기 때문**이다.
+
+   단계는 지어내지 않는다. 레벨은 토큰이고 토큰은 관측된 사실이므로, 진화도
+   관측의 함수다 — 이 앱이 처음부터 지켜 온 규칙 그대로다.
+
+     1단계  Lv.1~   그대로
+     2단계  Lv.15~  망토·투구 장식·어깨 보호대. 실루엣이 커진다
+     3단계  Lv.35~  오라와 빛나는 테두리. 멀리서도 다르게 보인다
+
+   실루엣이 커지는 순서가 중요하다. 색만 바꾸면 진화가 아니라 색놀이다. */
+
+const STAGES = [
+  { stage: 1, from: 1 },
+  { stage: 2, from: 15 },
+  { stage: 3, from: 35 },
+];
+
+/** 24×26 격자를 48×52 로 편다. 디테일은 이 위에 얹는다. */
+function upscale(g) {
+  const out = makeGrid(FG, FGH);
+  for (let y = 0; y < GH; y++) {
+    for (let x = 0; x < G; x++) {
+      const c = g[y][x];
+      if (!c) continue;
+      for (let j = 0; j < U; j++) for (let k = 0; k < U; k++) out[y * U + j][x * U + k] = c;
+    }
+  }
+  return out;
+}
+
+/** 굵은 격자 좌표 → 세밀한 격자 좌표. */
+const F = (n) => Math.round(n * U);
+
+/**
+ * 단계별로 더 붙는 것.
+ *
+ * 굵은 형태를 다시 그리지 않고 **얹기만** 한다. 그래야 세 단계가 한 사람으로
+ * 보인다 — 진화는 다른 캐릭터가 되는 게 아니라 같은 캐릭터가 자란 것이다.
+ */
+/** 진화 표식 색. 캐릭터 팔레트에서 가져오면 안 된다 — Rook 은 metal 이 투구 색이라
+    오라를 그려도 투구에 묻혀 아무것도 안 보였다. 진화는 눈에 띄어야 진화다. */
+const ACCENT = "#ffd54a";
+const ACCENT_LIT = "#fff3c4";
+
+function evolve(g, h, stage, row, i, dy) {
+  if (stage < 2) return;
+  const hx = F(HEAD.x);
+  const hy = F(HEAD.y + dy);
+  const hw = F(HEAD.w);
+  const hh = F(HEAD.h);
+  const tx = F(TORSO.x);
+  const ty = F(TORSO.y + dy);
+  const tw = F(TORSO.w);
+
+  /* 2단계 — 어깨가 넓어지고 목에 두른 것이 생긴다.
+     머리가 커서 몸통에 뭘 그려도 가려진다. 그래서 **머리 바깥으로** 나가야 한다. */
+  rect(g, hx - 4, hy + hh - 2, 5, 5, ACCENT);
+  rect(g, hx + hw - 1, hy + hh - 2, 5, 5, ACCENT);
+  rect(g, hx - 4, hy + hh + 3, 5, 1, INK);
+  rect(g, hx + hw - 1, hy + hh + 3, 5, 1, INK);
+  // 머리 장비를 두르는 띠 — 어느 모자를 썼든 같은 자리에 온다.
+  rect(g, hx - 1, hy + 1, hw + 2, 2, ACCENT);
+
+  if (stage < 3) return;
+
+  /* 3단계 — 위로 자란다. 옆으로 넓어지는 것보다 위로 솟는 쪽이 멀리서 먼저 읽힌다. */
+  const cx = hx + Math.round(hw / 2);
+  rect(g, hx + 2, hy - 4, hw - 4, 3, ACCENT); // 관
+  rect(g, hx + 2, hy - 5, hw - 4, 1, INK);
+  for (const [px, ph] of [
+    [hx + 3, 5],
+    [cx - 1, 8],
+    [hx + hw - 5, 5],
+  ]) {
+    rect(g, px, hy - 4 - ph, 2, ph, ACCENT); // 뿔 셋
+    rect(g, px, hy - 5 - ph, 2, 1, ACCENT_LIT);
+  }
+
+  // 오라 — 프레임마다 자리를 옮겨야 빛으로 읽힌다. 가만히 있으면 그냥 점이다.
+  const spots = [
+    [hx - 7, hy + 5],
+    [hx + hw + 4, hy + 8],
+    [tx - 9, ty + 7],
+    [tx + tw + 6, ty + 3],
+    [hx - 5, hy - 3],
+    [hx + hw + 2, hy - 5],
+  ];
+  spots.forEach(([px, py], k) => {
+    if ((i + k) % 3 !== 0) return;
+    put(g, px, py, ACCENT_LIT);
+    put(g, px + 1, py - 1, ACCENT);
+    put(g, px, py - 2, ACCENT_LIT);
+  });
+}
+
+/** 한 프레임을 세밀한 격자로 완성한다. */
+function fineFrame(h, stage, row, i) {
+  const base = frameOf(h, row, i);
+  const g = upscale(base);
+  // 몸이 얼마나 흔들렸는지는 굵은 격자에서 정해졌다. 여기서는 대략만 맞춘다.
+  const dy = row === "sleep" ? 3 : 0;
+  evolve(g, h, stage, row, i, dy);
+  return g;
+}
+
 /* ── 굽기 ─────────────────────────────────────────────────── */
 
 const index = [];
 for (const h of CAST) {
-  const png = bakeSheet({
-    rows: ROWS,
-    cols: COLS,
-    gw: G,
-    gh: GH,
-    scale: S,
-    frame: (row, i) => frameOf(h, row, i),
+  const sheets = STAGES.map(({ stage, from }) => {
+    const png = bakeSheet({
+      rows: ROWS,
+      cols: COLS,
+      gw: FG,
+      gh: FGH,
+      scale: S,
+      frame: (row, i) => fineFrame(h, stage, row, i),
+    });
+    const id = stage === 1 ? h.id : `${h.id}-${stage}`;
+    writeSheet(OUT, id, png);
+    console.log(`${id}.png  ${FG * S * COLS}×${FGH * S * ROWS.length}  Lv.${from}~`);
+    return { from, sheet: `pets/${id}.png` };
   });
-  writeSheet(OUT, h.id, png);
-  index.push({ id: h.id, name: h.name, hint: h.hint, sheet: `pets/${h.id}.png` });
-  console.log(`${h.id}.png  ${G * S * COLS}×${GH * S * ROWS.length}`);
+  index.push({ id: h.id, name: h.name, hint: h.hint, sheet: sheets[0].sheet, stages: sheets });
 }
 
 // 생물 시트 목록과 합쳐 둔다. 렌더러는 이 파일 하나만 읽는다.

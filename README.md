@@ -76,6 +76,24 @@ doing:
   <br><sub>waiting → thinking → searching → running → fixing → answering</sub>
 </p>
 
+### Evolution
+
+Levels that don't change anything are just a number. Characters grow with yours:
+
+| Stage | From | What changes |
+|---|---|---|
+| 1 | Lv.1 | the base character |
+| 2 | Lv.15 | gold trim, shoulder guards, a scarf — the silhouette widens |
+| 3 | Lv.35 | crown, horns and a drifting aura — it grows upward, which reads from further away |
+
+<p align="center">
+  <img src="docs/evolution.png" alt="Three evolution stages for four characters" width="318">
+</p>
+
+Nothing is invented here either. Level comes from tokens, tokens are observed, so
+the stage is a function of what actually happened. The panel shows the next
+threshold — an evolution nobody saw coming is an accident, not a system.
+
 ### Sprite packs
 
 The built-in sheets use the same atlas format as
@@ -159,7 +177,10 @@ npm run assets
   <img src="docs/lineup.png" alt="All fifteen characters standing still" width="530">
 </p>
 
-Drawn on a 24×26 grid and scaled 8×. The proportions aren't taste: characters
+Drawn on a 24×26 grid, doubled to 48×52, then scaled 4× — the cell stays 192×208
+so packs remain interchangeable, but evolution detail gets four times the pixels.
+Drawing straight onto the fine grid would mean rewriting every coordinate; the
+coarse shape is upscaled and the detail is added on top. The proportions aren't taste: characters
 that stay likeable share a few rules — big head, small body, **eyes low on the
 face**, blush above the cheek, no nose or fingers, cut corners. Changing one
 constant in the rig moves all nine rows of every character at once.

@@ -3,61 +3,201 @@
     "id": "rook",
     "name": "Rook",
     "hint": "투구를 쓴 기사. 검과 방패.",
-    "sheet": "pets/rook.png"
+    "sheet": "pets/rook.png",
+    "stages": [
+      {
+        "from": 1,
+        "sheet": "pets/rook.png"
+      },
+      {
+        "from": 15,
+        "sheet": "pets/rook-2.png"
+      },
+      {
+        "from": 35,
+        "sheet": "pets/rook-3.png"
+      }
+    ]
   },
   {
     "id": "vela",
     "name": "Vela",
     "hint": "뾰족 모자를 쓴 마법사. 지팡이.",
-    "sheet": "pets/vela.png"
+    "sheet": "pets/vela.png",
+    "stages": [
+      {
+        "from": 1,
+        "sheet": "pets/vela.png"
+      },
+      {
+        "from": 15,
+        "sheet": "pets/vela-2.png"
+      },
+      {
+        "from": 35,
+        "sheet": "pets/vela-3.png"
+      }
+    ]
   },
   {
     "id": "fenn",
     "name": "Fenn",
     "hint": "후드를 쓴 순찰자. 활.",
-    "sheet": "pets/fenn.png"
+    "sheet": "pets/fenn.png",
+    "stages": [
+      {
+        "from": 1,
+        "sheet": "pets/fenn.png"
+      },
+      {
+        "from": 15,
+        "sheet": "pets/fenn-2.png"
+      },
+      {
+        "from": 35,
+        "sheet": "pets/fenn-3.png"
+      }
+    ]
   },
   {
     "id": "nyx",
     "name": "Nyx",
     "hint": "복면을 쓴 도적. 단검 둘.",
-    "sheet": "pets/nyx.png"
+    "sheet": "pets/nyx.png",
+    "stages": [
+      {
+        "from": 1,
+        "sheet": "pets/nyx.png"
+      },
+      {
+        "from": 15,
+        "sheet": "pets/nyx-2.png"
+      },
+      {
+        "from": 35,
+        "sheet": "pets/nyx-3.png"
+      }
+    ]
   },
   {
     "id": "bunbun",
     "name": "Bunbun",
     "hint": "귀가 긴 토끼. 당근을 든다.",
-    "sheet": "pets/bunbun.png"
+    "sheet": "pets/bunbun.png",
+    "stages": [
+      {
+        "from": 1,
+        "sheet": "pets/bunbun.png"
+      },
+      {
+        "from": 15,
+        "sheet": "pets/bunbun-2.png"
+      },
+      {
+        "from": 35,
+        "sheet": "pets/bunbun-3.png"
+      }
+    ]
   },
   {
     "id": "choco",
     "name": "Choco",
     "hint": "둥근 귀 곰. 꿀단지를 안는다.",
-    "sheet": "pets/choco.png"
+    "sheet": "pets/choco.png",
+    "stages": [
+      {
+        "from": 1,
+        "sheet": "pets/choco.png"
+      },
+      {
+        "from": 15,
+        "sheet": "pets/choco-2.png"
+      },
+      {
+        "from": 35,
+        "sheet": "pets/choco-3.png"
+      }
+    ]
   },
   {
     "id": "nimbus",
     "name": "Nimbus",
     "hint": "구름 머리. 우산을 든다.",
-    "sheet": "pets/nimbus.png"
+    "sheet": "pets/nimbus.png",
+    "stages": [
+      {
+        "from": 1,
+        "sheet": "pets/nimbus.png"
+      },
+      {
+        "from": 15,
+        "sheet": "pets/nimbus-2.png"
+      },
+      {
+        "from": 35,
+        "sheet": "pets/nimbus-3.png"
+      }
+    ]
   },
   {
     "id": "momo",
     "name": "Momo",
     "hint": "복숭아 머리. 잎이 하나.",
-    "sheet": "pets/momo.png"
+    "sheet": "pets/momo.png",
+    "stages": [
+      {
+        "from": 1,
+        "sheet": "pets/momo.png"
+      },
+      {
+        "from": 15,
+        "sheet": "pets/momo-2.png"
+      },
+      {
+        "from": 35,
+        "sheet": "pets/momo-3.png"
+      }
+    ]
   },
   {
     "id": "mocha",
     "name": "Mocha",
     "hint": "컵을 머리에 인 요정. 김이 난다.",
-    "sheet": "pets/mocha.png"
+    "sheet": "pets/mocha.png",
+    "stages": [
+      {
+        "from": 1,
+        "sheet": "pets/mocha.png"
+      },
+      {
+        "from": 15,
+        "sheet": "pets/mocha-2.png"
+      },
+      {
+        "from": 35,
+        "sheet": "pets/mocha-3.png"
+      }
+    ]
   },
   {
     "id": "pip",
     "name": "Pip",
     "hint": "고글을 쓴 정비공. 렌치.",
-    "sheet": "pets/pip.png"
+    "sheet": "pets/pip.png",
+    "stages": [
+      {
+        "from": 1,
+        "sheet": "pets/pip.png"
+      },
+      {
+        "from": 15,
+        "sheet": "pets/pip-2.png"
+      },
+      {
+        "from": 35,
+        "sheet": "pets/pip-3.png"
+      }
+    ]
   },
   {
     "id": "blip",

@@ -516,7 +516,32 @@
   }
 
   // 우리 시트는 앱 안에 있고, 깔린 팩은 밖에 있다.
-  const petUrl = (p) => (p.builtin ? p.sheet : `file://${encodeURI(p.sheet)}`);
+  const url_ = (sheet, builtin) => (builtin ? sheet : `file://${encodeURI(sheet)}`);
+  const petUrl = (p) => url_(p.sheet, p.builtin);
+
+  /**
+   * 레벨에 맞는 진화 단계.
+   *
+   * 레벨이 올라도 모습이 그대로면 레벨은 그냥 숫자다. 단계는 지어내는 게 아니라
+   * 레벨의 함수이고, 레벨은 토큰이고, 토큰은 관측된 사실이다 — 이 앱이 처음부터
+   * 지켜 온 규칙 그대로다.
+   */
+  function stageOf(pack, level) {
+    // `key` 는 격자를 찾는 원본 경로, `url` 은 그림을 부르는 주소다. 하나로 합쳐
+    // 두고 URL 에서 되돌리면 경로에 공백이 있는 순간 못 찾는다.
+    if (!pack) return null;
+    const list = Array.isArray(pack.stages) && pack.stages.length ? pack.stages : null;
+    if (!list) return { key: pack.sheet, url: petUrl(pack), from: 1, stage: 1 };
+    let picked = list[0];
+    let n = 1;
+    list.forEach((st, k) => {
+      if ((Number(level) || 0) >= st.from) {
+        picked = st;
+        n = k + 1;
+      }
+    });
+    return { key: picked.sheet, url: url_(picked.sheet, pack.builtin), from: picked.from, stage: n };
+  }
   const chosenPet = () => {
     const want = localStorage.getItem("kb-pet");
     if (want === "none") return null;
@@ -544,8 +569,13 @@
     Promise.all([builtins(), installed]).then(async ([mine, list]) => {
       pets = [...mine, ...(Array.isArray(list) ? list : [])];
       for (const p of pets) {
-        const g = await measure(petUrl(p));
-        if (g) grids.set(p.sheet, g);
+        // 단계마다 시트가 따로다. 격자는 같겠지만 재 보지 않고 같다고 하면,
+        // 언젠가 다른 규격의 단계가 들어왔을 때 조용히 반쪽이 나온다.
+        const sheets = [p.sheet, ...(p.stages || []).map((s2) => s2.sheet)];
+        for (const sheet of new Set(sheets)) {
+          const g = await measure(url_(sheet, p.builtin));
+          if (g) grids.set(sheet, g);
+        }
       }
       redraw();
     });
@@ -588,7 +618,8 @@
       // 어떤 캐릭터로 그릴지가 먼저다. 모션도 인벤토리도 이 답에 따라 갈린다 —
       // 아래에서 선언해 두고 여기서 쓰면 콜백이 통째로 죽는다(또 그랬다).
       const pack = chosenPet();
-      const grid = pack ? grids.get(pack.sheet) : null;
+      const step = pack ? stageOf(pack, a.level) : null;
+      const grid = step ? grids.get(step.key) || grids.get(pack.sheet) : null;
       /* 스프라이트 시트를 쓸 때는 몸통을 기울이지 않는다.
          이 모션들은 마크를 다시 그릴 수 없던 시절의 것이다 — 로고를 통째로
          돌리고 눌러서 캐릭터인 척했다. 프레임이 직접 연기하는 지금은 둘이
@@ -611,7 +642,7 @@
       n.classList.toggle("sprite", Boolean(grid));
       if (grid) {
         const sheet = q(".sheet");
-        const url = petUrl(pack);
+        const url = step.url;
         if (sheet.dataset.src !== url) {
           sheet.dataset.src = url;
           sheet.style.backgroundImage = `url("${url}")`;
@@ -664,7 +695,13 @@
       q(".step").textContent =
         toolLine || pickLine(STATE_LINES[a.state], a.state + id) || "";
 
-      q(".lv").textContent = `Lv.${a.level ?? 1}`;
+      // 다음 진화가 언제인지 붙인다. 안 보여 주면 진화는 어느 날 갑자기 일어나는
+      // 일이 되고, 그러면 시스템이 아니라 사고다.
+      const nextAt = pack && Array.isArray(pack.stages)
+        ? (pack.stages.find((st) => st.from > (Number(a.level) || 0)) || {}).from
+        : undefined;
+      q(".lv").textContent = nextAt ? `Lv.${a.level ?? 1} → ${nextAt}에 진화` : `Lv.${a.level ?? 1}`;
+      q(".lv").title = step ? `${step.stage}단계` : "";
       q(".xp i").style.width = `${Math.min(100, ((a.xp ?? 0) / (a.need ?? 1)) * 100)}%`;
       const fmtTok = (n) =>
         n >= 1e12 ? `${(n / 1e12).toFixed(2)}조`
