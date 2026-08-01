@@ -32,6 +32,19 @@
   .weapon { left: 54px; top: 46px; width: 40px; height: 40px; display: none;
     transform-origin: 25% 80%; }
 
+  /* 스프라이트 시트 캐릭터.
+     8열 × 9행 아틀라스에서 한 칸만 보여 준다. 배경을 800% × 900% 로 늘리고
+     위치를 옮기는 방식이라 <img> 를 프레임마다 갈아 끼우지 않는다.
+     퍼센트 배경 위치는 "남는 공간의 몇 %" 라서, 열 n 은 n/(열수-1) 이다. */
+  .sheet { position: absolute; left: 0; top: 6px; width: 96px; height: 104px;
+    background-repeat: no-repeat; image-rendering: pixelated; display: none; }
+  .pet.sprite .mark, .pet.sprite .hat, .pet.sprite .weapon { display: none !important; }
+  .pet.sprite .sheet { display: block; }
+  /* 팩 고르기 버튼 — 시트의 첫 칸(가만히 서 있는 모습)을 썸네일로 쓴다. */
+  .pbtn { background-repeat: no-repeat; background-position: 0% 0%;
+    image-rendering: pixelated; }
+  .pbtn img { display: none; }
+
   /* 마우스를 올리면 또렷해진다 — 지금 보고 있는 대상이 어느 것인지가 먼저 읽혀야 한다. */
   .char { filter: saturate(0.85) brightness(0.94); transition: filter 120ms ease-out; }
   .pet:hover .char, .pet.pinned .char { filter: saturate(1.15) brightness(1.12); }
@@ -379,6 +392,7 @@
         <button class="open"></button>
       </div>
       <div class="char">
+        <div class="sheet"></div>
         <span class="sp mark"></span>
         <img class="hat" alt="" />
         <img class="weapon" alt="" />
@@ -391,6 +405,112 @@
     nodes.set(id, n);
     return n;
   }
+
+  /* ── 스프라이트 시트 ──────────────────────────────────────────
+     `codex-pets` 로 깔린 팩이 있으면 그걸로 그린다. 8열 × 9행 아틀라스이고
+     행마다 뜻이 있다 — Clawd 를 보고 정했다:
+
+       0 헤드폰   내 차례를 기다리는 중
+       3 안전모+렌치  고치는 중
+       4 전구     생각하는 중
+       5 잠       아무도 안 부름
+       6 달리기   답을 쓰는 중
+       7 보드     명령을 실행하는 중
+       8 돋보기   찾아보는 중
+
+     행마다 프레임 수가 다르다. 8칸으로 고정하면 중간에 캐릭터가 사라진다 —
+     그래서 **캔버스로 직접 센다.** Chromium 이 webp 를 이미 읽을 수 있는데
+     프레임 수를 짐작할 이유가 없다. */
+  const ROW = { wait: 0, fix: 3, think: 4, sleep: 5, answer: 6, run: 7, look: 8 };
+  const LOOK_TOOLS = new Set(["Read", "Grep", "Glob", "WebSearch", "WebFetch", "NotebookRead"]);
+  const RUN_TOOLS = new Set(["Bash", "BashOutput", "KillShell"]);
+
+  function rowFor(a, rows) {
+    let r;
+    if (a.state === "waiting") r = ROW.wait;
+    else if (a.state === "idle") r = ROW.sleep;
+    else if (a.state === "thinking") r = ROW.think;
+    else if (a.state === "answering") r = ROW.answer;
+    else if (LOOK_TOOLS.has(a.tool)) r = ROW.look;
+    else if (RUN_TOOLS.has(a.tool)) r = ROW.run;
+    else r = ROW.fix;
+    // 행이 적은 팩도 있다. 없는 행을 가리키면 빈 칸이 나온다.
+    return r < rows ? r : 0;
+  }
+
+  /** 아틀라스 셀 크기. 이것만 팩끼리 같고 행·열 수는 시트마다 다르다. */
+  const CELL_W = 192;
+  const CELL_H = 208;
+
+  let pets = [];
+  const grids = new Map(); // 시트 경로 → { cols, rows, frames[] }
+
+  /**
+   * 시트를 열어 격자와 행별 프레임 수를 잰다.
+   *
+   * 8열 9행으로 못 박았다가 11행짜리 팩에서 캐릭터가 반쪽씩 잘려 나왔다.
+   * Chromium 이 그림을 이미 읽을 수 있는데 규격을 짐작할 이유가 없다.
+   */
+  function measure(url) {
+    return new Promise((done) => {
+      const img = new Image();
+      img.onload = () => {
+        const cols = Math.max(1, Math.round(img.width / CELL_W));
+        const rows = Math.max(1, Math.round(img.height / CELL_H));
+        const cw = img.width / cols;
+        const ch = img.height / rows;
+        const cv = document.createElement("canvas");
+        cv.width = img.width;
+        cv.height = img.height;
+        const g = cv.getContext("2d", { willReadFrequently: true });
+        g.drawImage(img, 0, 0);
+        const frames = [];
+        for (let r = 0; r < rows; r++) {
+          let n = 1;
+          for (let c = 0; c < cols; c++) {
+            const d = g.getImageData(Math.round(c * cw), Math.round(r * ch), Math.round(cw), Math.round(ch)).data;
+            let solid = 0;
+            for (let i = 3; i < d.length; i += 4 * 8) if (d[i] > 8) solid++;
+            if (solid > 8) n = c + 1;
+            else break;
+          }
+          frames.push(n);
+        }
+        done({ cols, rows, frames });
+      };
+      img.onerror = () => done(null);
+      img.src = url;
+    });
+  }
+
+  const petUrl = (p) => `file://${encodeURI(p.sheet)}`;
+  const chosenPet = () => {
+    const want = localStorage.getItem("kb-pet");
+    if (want === "none") return null;
+    return pets.find((p) => p.id === want) || pets.find((p) => p.id === "clawd") || pets[0] || null;
+  };
+
+  if (window.pet.pets) {
+    window.pet.pets().then(async (list) => {
+      pets = Array.isArray(list) ? list : [];
+      for (const p of pets) {
+        const g = await measure(petUrl(p));
+        if (g) grids.set(p.sheet, g);
+      }
+      redraw();
+    });
+  }
+
+  /** 한 타이머가 모든 시트를 넘긴다. 캐릭터마다 타이머를 두면 화면 밖에서도 돈다. */
+  const FRAME_MS = 190;
+  const playing = new Map(); // 노드 → { el, row, frames, cols, i }
+  setInterval(() => {
+    if (document.hidden) return;
+    for (const st of playing.values()) {
+      st.i = (st.i + 1) % st.frames;
+      st.el.style.backgroundPositionX = st.cols > 1 ? `${(st.i * 100) / (st.cols - 1)}%` : "0%";
+    }
+  }, FRAME_MS);
 
   let tick = 0;
 
@@ -427,6 +547,34 @@
       const done = a.state === "waiting" && a.endedWithAnswer;
       if (done && !wasDone.get(id)) unseen.set(id, (unseen.get(id) || 0) + 1);
       wasDone.set(id, done);
+
+      // 스프라이트 팩이 있으면 캐릭터는 그쪽이다. 팩 안에 이미 모자·도구가
+      // 그려져 있어서, 우리 모자를 덧씌우면 둘 다 이상해진다.
+      const pack = chosenPet();
+      const grid = pack ? grids.get(pack.sheet) : null;
+      n.classList.toggle("sprite", Boolean(grid));
+      if (grid) {
+        const sheet = q(".sheet");
+        const url = petUrl(pack);
+        if (sheet.dataset.src !== url) {
+          sheet.dataset.src = url;
+          sheet.style.backgroundImage = `url("${url}")`;
+          sheet.style.backgroundSize = `${grid.cols * 100}% ${grid.rows * 100}%`;
+        }
+        const row = rowFor(a, grid.rows);
+        const frames = grid.frames[row] || 1;
+        sheet.style.backgroundPositionY = grid.rows > 1 ? `${(row * 100) / (grid.rows - 1)}%` : "0%";
+        const cur = playing.get(sheet);
+        // 행이 바뀌었을 때만 처음 프레임으로 돌린다. 매 갱신마다 되돌리면
+        // 애니메이션이 첫 칸에서 덜덜거린다.
+        if (!cur || cur.row !== row) {
+          sheet.style.backgroundPositionX = "0%";
+          playing.set(sheet, { el: sheet, row, frames, cols: grid.cols, i: 0 });
+        } else {
+          cur.frames = frames;
+          cur.cols = grid.cols;
+        }
+      }
 
       mask(q(".mark"), a.source === "codex" ? "character-mark-codex" : "character-mark-claude-code");
       q(".mark").style.color = a.source === "codex" ? "#e6ecf5" : "#d97757";
@@ -524,10 +672,21 @@
           .join("");
       // 고를 수 있는 목록은 상수다. 고른 값이 바뀔 때만 다시 그린다.
       const picker = q(".weapons");
-      const pickSig = `${ht.id}/${wp.id}`;
+      const pickSig = `${ht.id}/${wp.id}/${pack ? pack.id : "-"}/${pets.length}`;
       if (picker.dataset.sig !== pickSig) {
         picker.dataset.sig = pickSig;
-        picker.innerHTML = `<div class="prow">${row(HATS, ht, "kb-hat")}</div>
+        // 스프라이트 팩이 있으면 모자·무기는 팩 그림 안에 이미 있다. 고를 것은
+        // 어느 캐릭터로 볼지 하나뿐이다.
+        const petRow = pets.length
+          ? `<div class="prow">${pets
+              .map((pp) => `<button class="wbtn pbtn${pack && pp.id === pack.id ? " on" : ""}"
+                  data-k="kb-pet" data-v="${pp.id}" title="${esc(pp.name)}"
+                  style="background-image:url('${petUrl(pp)}')"></button>`)
+              .join("")}</div>`
+          : "";
+        picker.innerHTML = pack
+          ? petRow
+          : `${petRow}<div class="prow">${row(HATS, ht, "kb-hat")}</div>
           <div class="prow">${row(WEAPONS, wp, "kb-weapon")}</div>`;
         for (const b of picker.querySelectorAll(".wbtn")) {
           b.onclick = (ev) => {
@@ -559,7 +718,11 @@
     }
 
     for (const [id, node] of nodes) {
-      if (!seen.has(id)) { node.remove(); nodes.delete(id); }
+      if (!seen.has(id)) {
+        playing.delete(node.querySelector(".sheet"));
+        node.remove();
+        nodes.delete(id);
+      }
     }
   }
 

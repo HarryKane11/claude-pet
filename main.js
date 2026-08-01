@@ -16,6 +16,7 @@ const { app, BrowserWindow, ipcMain, screen, shell, powerMonitor } = require("el
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { liveAgents } = require("./src/reader");
+const { listPets } = require("./src/pets");
 
 const POLL_MS = 2000;
 const W = 500;
@@ -101,6 +102,8 @@ function createWindow() {
     win = null;
   });
 }
+
+ipcMain.handle("pets", () => listPets());
 
 ipcMain.on("quit", () => app.quit());
 

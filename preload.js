@@ -12,4 +12,6 @@ contextBridge.exposeInMainWorld("pet", {
   openSession: (id, dashboard) => ipcRenderer.send("open-session", id, dashboard === true),
   drag: (dx, dy) => ipcRenderer.send("drag", dx, dy),
   setInteractive: (on) => ipcRenderer.send("interactive", on),
+  // 깔려 있는 스프라이트 팩. 파일 경로만 넘긴다 — 읽는 것은 <img> 가 한다.
+  pets: () => ipcRenderer.invoke("pets"),
 });
