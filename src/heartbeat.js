@@ -19,7 +19,7 @@ const path = require("path");
  * 무시하면 사람은 자기가 쓴 일정이 도는 줄 알고 기다린다.
  */
 
-const HOME = process.env.KIBITZ_PET_HOME || path.join(os.homedir(), ".kibitz-pet");
+const { HOME } = require("./home");
 const FILE = path.join(HOME, "HEARTBEAT.md");
 
 const TEMPLATE = `# 심장 박동

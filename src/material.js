@@ -21,8 +21,7 @@ const memory = require("./memory");
  * 글이면서 동시에 밖으로 나가는 글이라, 적게 보내는 쪽이 언제나 맞다.
  */
 
-const CLAUDE_ROOT = process.env.KIBITZ_PET_CLAUDE_ROOT || path.join(os.homedir(), ".claude", "projects");
-const CODEX_ROOT = process.env.KIBITZ_PET_CODEX_ROOT || path.join(os.homedir(), ".codex", "sessions");
+const { CLAUDE_ROOT, CODEX_ROOT } = require("./home");
 
 /** 한 회차에 볼 세션 파일 수. 이보다 오래된 것은 이미 지난 회차가 봤다. */
 const MAX_FILES = 8;

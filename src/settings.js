@@ -16,7 +16,7 @@ const path = require("path");
  * 같은 이유다.
  */
 
-const HOME = process.env.KIBITZ_PET_HOME || path.join(os.homedir(), ".kibitz-pet");
+const { HOME } = require("./home");
 const FILE = path.join(HOME, "settings.json");
 
 const DEFAULTS = {

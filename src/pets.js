@@ -18,7 +18,7 @@ const path = require("path");
  */
 
 function petsDir() {
-  return process.env.KIBITZ_PET_PACKS || path.join(os.homedir(), ".codex", "pets");
+  return process.env.CLAUDE_PET_PACKS || process.env.KIBITZ_PET_PACKS || path.join(os.homedir(), ".codex", "pets");
 }
 
 function listPets() {

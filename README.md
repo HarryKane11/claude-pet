@@ -154,7 +154,9 @@ Click the pet, then **⚙**. Choosing a character, tuning how much it talks, and
 approving memories are all real screens now — reviewing a list of proposed
 memories was never something a bubble that vanishes in twelve seconds could do.
 
-Settings live in `~/.kibitz-pet/settings.json`; edit it by hand if you prefer.
+Everything the pet owns lives in `~/.claude-pet/` — `settings.json`,
+`HEARTBEAT.md`, `SOUL.md`, and the memory queue. All plain text, all yours to
+edit.
 
 **It doesn't leave on its own.** Close the window and it comes back; the renderer
 crashes and it reloads; the settings window closes and the pet stays. The only
@@ -201,8 +203,12 @@ later ones do not — which is the point.
 | 60 | 240,000,000 |
 | 100 | 1,000,000,000,000 |
 
-The running total is kept per file in `~/.kibitz-pet/progress.json`, so restarting
+The running total is kept per file in `~/.claude-pet/progress.json`, so restarting
 doesn't recount and doesn't double count.
+
+*(This directory used to be `~/.kibitz-pet`, from when the pet lived inside
+kibitz. It moves itself across on first run — losing someone's level to a rename
+would be a poor trade for a tidier name.)*
 
 ## Controls
 
@@ -286,7 +292,7 @@ Four ideas were worth taking from the literature:
 | Links | [A-MEM](https://arxiv.org/abs/2502.12110) | `[[name]]` between notes; new facts update old ones |
 
 The extraction runs on a schedule you write yourself, in plain Korean, in
-`~/.kibitz-pet/HEARTBEAT.md`:
+`~/.claude-pet/HEARTBEAT.md`:
 
     매일 09:00
     매일 18:00
@@ -305,7 +311,7 @@ machine.
 
 Each character talks differently. `souls/<id>.md` is a few lines of plain text —
 Rook is stiff and formal, Bunbun bubbles, Nyx drops particles entirely, Choco
-tells you there's no rush. Drop a `~/.kibitz-pet/SOUL.md` in place to override
+tells you there's no rush. Drop a `~/.claude-pet/SOUL.md` in place to override
 all of them.
 
 The same input, three characters:

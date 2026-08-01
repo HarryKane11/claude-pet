@@ -24,7 +24,7 @@ const path = require("path");
  * 정한다. 아래 경계 문구가 목소리 뒤에 항상 따라붙는 이유다.
  */
 
-const HOME = process.env.KIBITZ_PET_HOME || path.join(os.homedir(), ".kibitz-pet");
+const { HOME } = require("./home");
 const BUILTIN = path.join(__dirname, "..", "souls");
 /** 사람이 직접 쓴 것이 있으면 그게 이긴다. */
 const OVERRIDE = path.join(HOME, "SOUL.md");

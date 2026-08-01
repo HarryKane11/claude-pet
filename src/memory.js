@@ -37,7 +37,7 @@ const path = require("path");
  * 다음 세션에서 실제로 로드된다 — 아무도 안 읽는 기억은 기억이 아니다.
  */
 
-const HOME = process.env.KIBITZ_PET_HOME || path.join(os.homedir(), ".kibitz-pet");
+const { HOME } = require("./home");
 const PENDING = path.join(HOME, "memory", "pending");
 const REJECTED = path.join(HOME, "memory", "rejected.jsonl");
 const USAGE = path.join(HOME, "memory", "usage.json");

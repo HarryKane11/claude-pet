@@ -27,7 +27,7 @@ const path = require("path");
  * `pick` 은 순수 함수다. 시간에 얽힌 규칙은 눈으로 봐서 틀린 것을 못 찾는다.
  */
 
-const HOME = process.env.KIBITZ_PET_HOME || path.join(os.homedir(), ".kibitz-pet");
+const { HOME } = require("./home");
 const STATE_FILE = path.join(HOME, "nudges.json");
 const NOTES_FILE = path.join(HOME, "notes.json");
 

@@ -22,7 +22,8 @@ const { levelFor } = require("./level");
  * 펫을 껐다 켜도 처음부터 다시 세지 않는다. 파일별로 들고 있는 이유는 중복 계상을
  * 막기 위해서다 — 합계 하나만 저장하면 재시작 때 같은 파일을 또 더하게 된다.
  */
-const PROGRESS = path.join(os.homedir(), ".kibitz-pet", "progress.json");
+const { HOME, CLAUDE_ROOT, CODEX_ROOT } = require("./home");
+const PROGRESS = path.join(HOME, "progress.json");
 
 function loadProgress() {
   try {
@@ -54,9 +55,7 @@ function totalTokens() {
   return Object.values(progress.files).reduce((a, n) => a + (Number(n) || 0), 0);
 }
 
-// 테스트에서 가짜 세션 폴더를 물릴 수 있게 해 둔다. 실사용에서는 건드리지 않는다.
-const CLAUDE_ROOT = process.env.KIBITZ_PET_CLAUDE_ROOT || path.join(os.homedir(), ".claude", "projects");
-const CODEX_ROOT = process.env.KIBITZ_PET_CODEX_ROOT || path.join(os.homedir(), ".codex", "sessions");
+// 세션을 어디서 읽는지는 `home.js` 가 정한다.
 
 /** 이 시간 안에 쓰인 파일만 "살아 있다"고 본다. */
 const LIVE_WINDOW_MS = 120_000;

@@ -15,11 +15,17 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 
-/** 테스트마다 새 집을 준다. 모듈이 경로를 읽는 시점이 로드 때라 캐시도 지운다. */
+/**
+ * 테스트마다 새 집을 준다.
+ *
+ * 경로는 `home.js` 가 **로드될 때 한 번** 정한다(실사용에서는 프로세스 하나라
+ * 그게 맞다). 그래서 여기서는 그 모듈까지 캐시에서 지워야 새 집이 먹는다 —
+ * 하나만 지웠다가 앞 테스트의 집을 그대로 쓰는 것을 겪었다.
+ */
 function freshHome() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "petmem-"));
-  process.env.KIBITZ_PET_HOME = home;
-  delete require.cache[require.resolve("../src/memory.js")];
+  process.env.CLAUDE_PET_HOME = home;
+  for (const m of ["../src/home.js", "../src/memory.js"]) delete require.cache[require.resolve(m)];
   const mem = require("../src/memory.js");
   fs.mkdirSync(mem.PENDING, { recursive: true });
   return { home, mem, target: fs.mkdtempSync(path.join(os.tmpdir(), "petproj-")) };

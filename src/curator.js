@@ -34,7 +34,7 @@ const { soulFor } = require("./soul");
  * 돌아온 JSON 을 우리가 검증해서 쓴다. 파일 쓰기를 맡기지 않는다.
  */
 
-const HOME = process.env.KIBITZ_PET_HOME || path.join(os.homedir(), ".kibitz-pet");
+const { HOME } = require("./home");
 const NOTES = path.join(HOME, "notes.json");
 const STATE = path.join(HOME, "curator.json");
 
@@ -48,7 +48,7 @@ const STATE = path.join(HOME, "curator.json");
  *
  * 무엇을 버릴지 아는 것이 이 일의 전부다. 하루 두 번에 월 $3 이면 값이 맞는다.
  */
-const MODEL = process.env.KIBITZ_PET_MODEL || "claude-sonnet-5";
+const MODEL = process.env.CLAUDE_PET_MODEL || process.env.KIBITZ_PET_MODEL || "claude-sonnet-5";
 
 const BASE = `너는 사람의 화면 구석에 떠 있는 작은 픽셀 캐릭터다. 코드 에이전트가 아니다 —
 코드를 고치지도, 파일을 열지도 않는다. 옆에서 지켜본 것을 바탕으로 기억해 둘
