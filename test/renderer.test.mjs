@@ -154,7 +154,7 @@ function runRenderer(settings = {}) {
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
   vm.runInContext(script, sandbox, { filename: "renderer/index.html" });
-  return { root, push: (agents, nudge) => onAgents(agents, nudge), doc, sandbox };
+  return { root, push: (agents, nudge, chatter) => onAgents(agents, nudge, chatter), doc, sandbox };
 }
 
 const AGENT = {
@@ -267,4 +267,25 @@ test("조용히면 말풍선이 안 뜬다", async () => {
   const pet = app.root.children[0];
   app.push([AGENT], { kind: "waiting", text: "부르는 중", showMs: 12000 });
   assert.equal(pet.querySelector(".nudge").classList.contains("on"), false);
+});
+
+test("혼잣말은 조용히 뜬다 — 예산도 클릭도 없이", () => {
+  const app = runRenderer();
+  app.push([AGENT]);
+  const pet = app.root.children[0];
+  const el = pet.querySelector(".mutter");
+  assert.equal(el.classList.contains("on"), false);
+
+  app.push([AGENT], null, { text: "뭔가 열심히 치고 있어", tool: "Bash", session: "t1", showMs: 7000 });
+  assert.ok(el.classList.contains("on"), "혼잣말이 떠야 한다");
+  assert.equal(el.textContent, "뭔가 열심히 치고 있어");
+});
+
+test("말풍선이 있으면 혼잣말은 건너뛴다", () => {
+  const app = runRenderer();
+  app.push([AGENT]);
+  const pet = app.root.children[0];
+  app.push([AGENT], { kind: "waiting", text: "다 썼어", showMs: 12000 }, { text: "읽는 중", session: "t1" });
+  assert.ok(pet.querySelector(".nudge").classList.contains("on"));
+  assert.equal(pet.querySelector(".mutter").classList.contains("on"), false, "둘이 겹치면 어느 쪽도 안 읽힌다");
 });

@@ -126,7 +126,7 @@ function choose(list, seed) {
 /* ── 저장 ─────────────────────────────────────────────────── */
 
 function emptyState() {
-  return { spoken: {}, recent: [], level: 0, seenAt: {}, workSince: {}, said: 0, day: "", lastKind: "" };
+  return { spoken: {}, recent: [], level: 0, seenAt: {}, workSince: {}, said: 0, day: "", lastKind: "", chatterAt: 0, chatterTool: "", chatterN: 0 };
 }
 
 function loadState() {
@@ -349,6 +349,41 @@ function quoteOf(a) {
   return first.length > 70 ? first.slice(0, 69) + "…" : first;
 }
 
+/* ── 혼잣말 ────────────────────────────────────────────────
+   말풍선과 다른 채널이다.
+
+   도구 이야기를 말풍선으로 냈더니 9분에 한 번, 12초 동안만 보였다. 펫은 97%의
+   시간을 조용히 있었고 그건 혼잣말이 아니었다. 알림의 기준으로 설계해 놓고
+   혼잣말이라고 부른 것이 잘못이다.
+
+   **혼잣말은 사건이 아니라 상태다.** 지금 무엇을 하는지 계속 중얼거리는 것이지,
+   무슨 일이 생겼다고 알리는 것이 아니다. 그래서 예산을 쓰지 않고, 조용히
+   나타났다 사라지고, 못 봐도 아무 일이 없다. */
+
+const CHATTER_MS = 22_000;
+
+function chatterFor(agents, state, now = Date.now(), mood = "chatty") {
+  if (mood !== "chatty") return null;
+  const a = agents[0];
+  if (!a || a.state !== "working" || !a.tool) return null;
+
+  const last = state.chatterAt || 0;
+  const same = state.chatterTool === a.tool;
+  // 도구가 바뀌면 바로, 같은 도구면 한참 뒤에. 같은 일을 하는 동안 계속 떠들면
+  // 그건 중얼거림이 아니라 반복 재생이다.
+  if (same && now - last < CHATTER_MS * 3) return null;
+  if (!same && now - last < 6_000) return null;
+
+  const n = (state.chatterN || 0) + 1;
+  return {
+    text: choose(pool("tool", a.tool), `${a.tool}:${n}`),
+    tool: a.tool,
+    session: a.sessionId,
+    showMs: 7_000,
+    state: { ...state, chatterAt: now, chatterTool: a.tool, chatterN: n },
+  };
+}
+
 /** 실사용 진입점 — 읽고, 고르고, 쓴다. */
 function nextNudge(agents, { mood = "normal", now = Date.now() } = {}) {
   const state = loadState();
@@ -357,9 +392,22 @@ function nextNudge(agents, { mood = "normal", now = Date.now() } = {}) {
   return nudge;
 }
 
+/** 혼잣말. 말풍선 예산과 따로 논다. */
+function nextChatter(agents, { mood = "chatty", now = Date.now() } = {}) {
+  const state = loadState();
+  const got = chatterFor(agents, state, now, mood);
+  if (!got) return null;
+  const { state: after, ...line } = got;
+  saveState(after);
+  return line;
+}
+
 module.exports = {
   pick,
   nextNudge,
+  chatterFor,
+  nextChatter,
+  CHATTER_MS,
   loadNotes,
   quoteOf,
   emptyState,

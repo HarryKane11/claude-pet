@@ -233,6 +233,18 @@
   .hush:hover { color: rgba(255,255,255,0.85); }
   .hush.on { color: #e8b163; border-color: rgba(232,177,99,0.35); }
 
+  /* 혼잣말. 말풍선보다 작고 조용하다 — 알림이 아니라 지금 하는 일이라서,
+     눈에 띄면 오히려 방해가 된다. 꼬리도 없다. */
+  .mutter { position: absolute; right: 100%; bottom: 12px; margin-right: 6px;
+    width: max-content; max-width: 190px; padding: 3px 8px; border-radius: 8px;
+    background: rgba(20,23,30,0.82); color: #aab4c6; font-size: 10.5px; line-height: 1.5;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    opacity: 0; transform: translateY(3px);
+    transition: opacity 260ms ease-out, transform 260ms ease-out; pointer-events: none; }
+  .mutter.on { opacity: 1; transform: translateY(0); }
+  /* 말풍선이 떠 있는 동안에는 숨는다. 둘이 겹치면 어느 쪽도 안 읽힌다. */
+  .pet:has(.nudge.on) .mutter { opacity: 0 !important; }
+
   .nudge .quote { display: block; margin-top: 4px; color: #9aa6bb; font-size: 10.5px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -425,6 +437,7 @@
         <span class="sp fx"></span>
         <span class="badge"></span>
         <div class="nudge"></div>
+        <div class="mutter"></div>
         <span class="zzz">z</span>
         <span class="close" title="이 펫 숨기기">×</span>
       </div>`;
@@ -809,6 +822,20 @@
   }
 
   let nudgeTimer = null;
+  let mutterTimer = null;
+
+  /* 혼잣말은 못 보고 지나가도 아무 일이 없어야 한다. 그래서 클릭도 안 받고
+     조용히 나타났다 사라진다. */
+  function mutter(m) {
+    if (!m) return;
+    const node = nodes.get(m.session) || nodes.values().next().value;
+    if (!node) return;
+    const el = node.querySelector(".mutter");
+    el.textContent = m.text;
+    el.classList.add("on");
+    clearTimeout(mutterTimer);
+    mutterTimer = setTimeout(() => el.classList.remove("on"), m.showMs || 7000);
+  }
 
   function speak(a) {
     if (!a) return;
@@ -827,9 +854,11 @@
     nudgeTimer = setTimeout(() => el.classList.remove("on"), a.showMs || 12000);
   }
 
-  window.pet.onAgents((agents, nudge) => {
+  window.pet.onAgents((agents, nudge, chatter) => {
     lastAgents = agents || [];
     render(lastAgents);
-    if (nudge && !quiet()) speak(nudge);
+    if (quiet()) return;
+    if (nudge) speak(nudge);
+    else mutter(chatter);
   });
 </script>

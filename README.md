@@ -118,6 +118,44 @@ The grid is measured from the sheet itself, not assumed. Cells are 192×208 in
 every pack, but the number of rows is not (Clawd has 9, Pepe has 11) — guessing
 gets you a character sliced in half.
 
+## Talking
+
+The pet speaks from what it observed, never from a timer. There are two channels,
+and separating them is the whole design:
+
+**Muttering** — what it's doing *right now*. Small, quiet, roughly once a minute
+while work is happening, gone in seven seconds. Reading, grepping, typing into a
+terminal — each tool gets its own line. Missing one costs nothing, which is why
+it can be frequent.
+
+**Speaking up** — something *happened*. A proper bubble with a tail, up to a few
+times an hour:
+
+| | When |
+|---|---|
+| Your turn | it finished answering five minutes ago and you haven't come back — shown with the agent's own first sentence, so you can judge whether to |
+| Level up | you crossed a threshold |
+| Take a break | you've been at it two hours — the one place "rest" is grounded in something |
+| New gear | a skill or plugin it hasn't seen before |
+| Delegating | subagents are out |
+| Still going | one request passed eight minutes |
+| Quiet | nothing has run for twelve minutes. That is also an observation |
+
+Three settings: **chatty** (default), **normal** (events only), **quiet**
+(nothing). A budget, a floor on the gap between two lines, and a per-kind
+cooldown keep it from becoming background noise — and it prefers a different
+subject each time, because a pet that makes the same sound is an alert tone.
+
+Nothing is spoken while the window is hidden, and nothing queues up for later.
+
+## Settings
+
+Click the pet, then **⚙**. Choosing a character, tuning how much it talks, and
+approving memories are all real screens now — reviewing a list of proposed
+memories was never something a bubble that vanishes in twelve seconds could do.
+
+Settings live in `~/.kibitz-pet/settings.json`; edit it by hand if you prefer.
+
 ## Equipment
 
 Without a sprite pack the character is the agent's own mark, and gear is worn
@@ -212,7 +250,9 @@ completely blank while `pgrep` said everything was fine.
 
 ## Memory
 
-The pet proposes what to remember; you approve. Approved memories are written
+The pet proposes what to remember; you approve — in the **기억** tab, which shows
+you exactly which directory each one would be written to before you press the
+button. Approved memories are written
 where your agent already reads them — `<project>/memory/<name>.md` plus a line in
 `MEMORY.md` — so the next session actually loads them. A memory nobody reads is
 not a memory.

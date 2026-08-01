@@ -17,7 +17,7 @@ const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { liveAgents } = require("./src/reader");
 const { listPets } = require("./src/pets");
-const { nextNudge } = require("./src/nudges");
+const { nextNudge, nextChatter } = require("./src/nudges");
 const settings = require("./src/settings");
 const memory = require("./src/memory");
 const curator = require("./src/curator");
@@ -77,11 +77,14 @@ function createWindow() {
     const agents = liveAgents();
     // 말은 상태가 안 바뀌어도 나올 수 있다 — 기다린 시간이 흐른 것 자체가 사건이다.
     // 그래서 중복 차단보다 먼저 본다.
-    const nudge = nextNudge(agents, { mood: settings.load().mood });
+    const mood = settings.load().mood;
+    const nudge = nextNudge(agents, { mood });
+    // 혼잣말은 예산 밖이다. 말풍선이 나가는 동안에는 겹치지 않게 쉰다.
+    const chatter = nudge ? null : nextChatter(agents, { mood });
     const sig = JSON.stringify(agents);
-    if (sig === lastSig && !nudge) return;
+    if (sig === lastSig && !nudge && !chatter) return;
     lastSig = sig;
-    win.webContents.send("agents", agents, nudge);
+    win.webContents.send("agents", agents, nudge, chatter);
   };
   push();
   timer = setInterval(push, POLL_MS);

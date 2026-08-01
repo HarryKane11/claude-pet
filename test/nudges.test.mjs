@@ -276,3 +276,31 @@ test("같은 상황이 반복되면 다른 문장이 나온다", () => {
   }
   assert.ok(seen.size > 1, "같은 문장만 반복하면 사람이 읽기를 그만둔다");
 });
+
+test("혼잣말은 도구가 바뀌면 바로, 같은 도구면 한참 뒤에", () => {
+  const { chatterFor } = require("../src/nudges.js");
+  const base = { sessionId: "s", state: "working", tool: "Bash", level: 20 };
+  let st = emptyState();
+
+  const first = chatterFor([base], st, T0, "chatty");
+  assert.ok(first, "처음에는 바로 중얼거린다");
+  st = first.state;
+
+  const same = chatterFor([base], st, T0 + 20_000, "chatty");
+  assert.equal(same, null, "같은 도구로 20초 만에 또 떠들면 반복 재생이다");
+
+  const changed = chatterFor([{ ...base, tool: "Read" }], st, T0 + 10_000, "chatty");
+  assert.ok(changed, "도구가 바뀌면 바로");
+  assert.match(changed.text, /읽|문서|보는/, "무슨 도구인지 아는 말이어야 한다");
+});
+
+test("혼잣말은 수다 모드에서만, 일하는 중에만", () => {
+  const { chatterFor } = require("../src/nudges.js");
+  const busy = { sessionId: "s", state: "working", tool: "Bash", level: 20 };
+  assert.equal(chatterFor([busy], emptyState(), T0, "normal"), null, "보통 모드는 중얼거리지 않는다");
+  assert.equal(
+    chatterFor([{ ...busy, state: "waiting", tool: null }], emptyState(), T0, "chatty"),
+    null,
+    "일하고 있지 않으면 할 말도 없다",
+  );
+});

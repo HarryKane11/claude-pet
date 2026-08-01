@@ -7,7 +7,7 @@ const { contextBridge, ipcRenderer } = require("electron");
  * 파일 접근도 노드도 넘기지 않는다 — 렌더러는 그림만 그린다.
  */
 contextBridge.exposeInMainWorld("pet", {
-  onAgents: (fn) => ipcRenderer.on("agents", (_e, agents, nudge) => fn(agents, nudge)),
+  onAgents: (fn) => ipcRenderer.on("agents", (_e, agents, nudge, chatter) => fn(agents, nudge, chatter)),
   quit: () => ipcRenderer.send("quit"),
   openSession: (id, dashboard) => ipcRenderer.send("open-session", id, dashboard === true),
   drag: (dx, dy) => ipcRenderer.send("drag", dx, dy),
