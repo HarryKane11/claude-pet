@@ -81,7 +81,11 @@ const SYSTEM = `너는 사람의 화면 구석에 떠 있는 작은 픽셀 캐�
 - 관측한 것에서만. "6시간째 같은 파일" 은 되고 "힘내" 는 안 된다
 - 칭찬은 구체적인 것을 인용할 때만. "대단해요" 는 사흘이면 안 읽힌다
 - 두 문장을 넘지 마라
-- when 은 waiting · levelup · idle 중 하나
+- when 은 펫이 그 말을 꺼낼 자리다:
+  waiting(답 다 쓰고 사람을 기다리는 중) · levelup · streak(오래 붙어 있을 때)
+  · gear(새 스킬·플러그인) · deep(분신이 나가 있을 때) · long(요청이 길어질 때)
+  · tool(도구를 쓰는 중) · idle(아무도 안 부를 때) · hello(오늘 처음)
+- 자리마다 하나씩 준비해 두면 펫이 하루 종일 다르게 말한다
 
 ## 출력
 
@@ -95,6 +99,9 @@ JSON 하나만. 설명도 코드펜스도 없이.
    type 을 지어내기도 한다 — 실제로 둘 다 겪었다. */
 
 const TYPES = new Set(["user", "feedback", "project", "reference"]);
+/** 펫이 말을 꺼낼 수 있는 자리. nudges.js 의 트리거 종류와 같아야 한다 —
+    여기 없는 `when` 으로 적어 두면 그 문장은 영영 안 나온다. */
+const WHENS = ["waiting", "levelup", "streak", "gear", "deep", "long", "tool", "idle", "hello"];
 const slug = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 /** 코드펜스와 앞뒤 잡말을 걷어내고 JSON 만 남긴다. */
@@ -118,7 +125,7 @@ function validate(raw) {
 
   for (const l of Array.isArray(raw.lines) ? raw.lines : []) {
     if (!l || typeof l.text !== "string" || !l.text.trim()) continue;
-    const when = ["waiting", "levelup", "idle"].includes(l.when) ? l.when : "waiting";
+    const when = WHENS.includes(l.when) ? l.when : "waiting";
     // 두 문장까지. 길면 말풍선이 아니라 문서가 된다.
     out.lines.push({ when, text: l.text.trim().slice(0, 160), expires: l.expires || null });
   }

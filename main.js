@@ -74,7 +74,7 @@ function createWindow() {
     const agents = liveAgents();
     // 말은 상태가 안 바뀌어도 나올 수 있다 — 기다린 시간이 흐른 것 자체가 사건이다.
     // 그래서 중복 차단보다 먼저 본다.
-    const nudge = nextNudge(agents, { quiet });
+    const nudge = nextNudge(agents, { mood });
     const sig = JSON.stringify(agents);
     if (sig === lastSig && !nudge) return;
     lastSig = sig;
@@ -109,10 +109,13 @@ function createWindow() {
 
 ipcMain.handle("pets", () => listPets());
 
-/** 조용히 모드. 화면 공유 중이거나 집중할 때 — 켜 두면 아무 말도 안 한다. */
-let quiet = false;
-ipcMain.on("quiet", (_e, on) => {
-  quiet = on === true;
+/**
+ * 말수. 스위치 하나로는 안 된다 — 어떤 사람에게는 시간당 세 번도 많고,
+ * 어떤 사람에게는 반려동물이 하루 두 마디만 하면 죽은 것 같다.
+ */
+let mood = "normal";
+ipcMain.on("mood", (_e, m) => {
+  mood = ["quiet", "normal", "chatty"].includes(m) ? m : "normal";
 });
 
 ipcMain.on("quit", () => app.quit());

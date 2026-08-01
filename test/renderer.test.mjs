@@ -131,7 +131,7 @@ function runRenderer() {
           onAgents = fn;
         },
         setInteractive() {},
-        setQuiet() {},
+        setMood() {},
         quit() {},
         drag() {},
         open() {},
@@ -247,6 +247,8 @@ test("조용히 모드면 말풍선이 안 뜬다", () => {
   app.push([AGENT]);
   const pet = app.root.children[0];
   // 패널의 스위치를 누른다.
+  // 보통 → 수다 → 조용히. 두 번 눌러야 조용해진다.
+  pet.querySelector(".hush").onclick({ stopPropagation() {} });
   pet.querySelector(".hush").onclick({ stopPropagation() {} });
 
   app.push([AGENT], { kind: "waiting", text: "부르는 중", showMs: 12000 });

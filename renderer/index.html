@@ -809,16 +809,17 @@
 
       // 조용히 모드 스위치. 패널 안에 둔다 — 늘 보이면 그것대로 시끄럽다.
       const hush = q(".hush");
+      const LABEL = { normal: "🔔 보통", chatty: "💬 수다", quiet: "🔇 조용히" };
       const setHush = () => {
-        const on = quiet();
-        hush.textContent = on ? "🔇 조용히" : "🔔 말 걸기";
-        hush.classList.toggle("on", on);
+        hush.textContent = LABEL[mood()];
+        hush.classList.toggle("on", quiet());
       };
       setHush();
       hush.onclick = (ev) => {
         ev.stopPropagation();
-        localStorage.setItem("kb-quiet", quiet() ? "0" : "1");
-        window.pet.setQuiet(quiet());
+        const at = MOODS.indexOf(mood());
+        localStorage.setItem("kb-mood", MOODS[(at + 1) % MOODS.length]);
+        window.pet.setMood(mood());
         setHush();
       };
 
@@ -843,8 +844,13 @@
   /* 조용히 모드. 켜면 먼저 말을 걸지 않는다 — 화면 공유 중이거나 집중할 때.
      상태를 메인에 알려 두는 것은, 조용한 동안 "세션당 한 번" 예산을 쓰지 않기
      위해서다. 여기서 숨기기만 하면 조용히 모드를 끈 순간 할 말이 이미 없다. */
-  const quiet = () => localStorage.getItem("kb-quiet") === "1";
-  window.pet.setQuiet(quiet());
+  const MOODS = ["normal", "chatty", "quiet"];
+  const mood = () => {
+    const m = localStorage.getItem("kb-mood");
+    return MOODS.includes(m) ? m : "normal";
+  };
+  const quiet = () => mood() === "quiet";
+  window.pet.setMood(mood());
 
   let nudgeTimer = null;
 

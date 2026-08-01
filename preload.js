@@ -14,5 +14,5 @@ contextBridge.exposeInMainWorld("pet", {
   setInteractive: (on) => ipcRenderer.send("interactive", on),
   // 깔려 있는 스프라이트 팩. 파일 경로만 넘긴다 — 읽는 것은 <img> 가 한다.
   pets: () => ipcRenderer.invoke("pets"),
-  setQuiet: (on) => ipcRenderer.send("quiet", on),
+  setMood: (m) => ipcRenderer.send("mood", m),
 });
