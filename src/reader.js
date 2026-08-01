@@ -247,6 +247,12 @@ function readClaudeCode(found) {
   // 위임한 에이전트 — 띄운 것에서 돌아온 것을 뺀다. 지금 몇이 밖에 나가 있는가.
   const launched = new Set();
   const returned = new Set();
+  // 사람이 친 프롬프트인지 기록이 직접 말해 준다. 요약 훅 같은 headless 실행은
+  // 대화방과 같은 자리에 같은 형식으로 쓰이고 그럴듯한 제목까지 달고 나온다.
+  let originAware = false;
+  let humanPrompt = false;
+  let promptCount = 0;
+  let toolCallCount = 0;
   const skills = [];
   const plugins = [];
   const rules = [];
@@ -284,6 +290,11 @@ function readClaudeCode(found) {
     const content = msg.content;
 
     if (o.type === "user") {
+      const kind = o.origin && typeof o.origin === "object" ? o.origin.kind : null;
+      if (kind) {
+        originAware = true;
+        if (kind === "human") humanPrompt = true;
+      }
       const raw = typeof content === "string" ? content : "";
       if (raw.startsWith("<task-notification>")) {
         const m = raw.match(/<tool-use-id>([^<]+)<\/tool-use-id>/);
@@ -297,6 +308,7 @@ function readClaudeCode(found) {
       } else if (!o.isMeta && !o.sourceToolUseID) {
         const text = textOf(content);
         if (text && !text.startsWith("<")) {
+          promptCount += 1;
           lastPrompt = text.slice(0, 160);
           state = "thinking";
           tool = null;
@@ -304,8 +316,9 @@ function readClaudeCode(found) {
       }
     } else if (o.type === "assistant" && Array.isArray(content)) {
       for (const b of content) {
-        if (b && b.type === "tool_use" && (b.name === "Agent" || b.name === "Task")) {
-          launched.add(b.id);
+        if (b && b.type === "tool_use") {
+          toolCallCount += 1;
+          if (b.name === "Agent" || b.name === "Task") launched.add(b.id);
         }
       }
       const call = content.find((b) => b && b.type === "tool_use");
@@ -326,12 +339,22 @@ function readClaudeCode(found) {
   // 도구를 돌리다 멈춘 것과 할 말을 다 하고 멈춘 것은 다른 사건이다.
   const endedWithAnswer = state === "answering";
 
-  // 30초 넘게 조용하면 사람 차례다.
-  if (Date.now() - Date.parse(at) > 30_000) state = "waiting";
+  // 답을 다 쓰고 멈췄으면 그 순간 이미 내 차례다. 30초를 기다리면 알림이 30초
+  // 늦게 뜨고, 그때쯤이면 알림이 알려 주는 게 아니라 확인시켜 주는 게 된다.
+  // 도구를 돌리다 멈춘 것은 아직 하는 중일 수 있으므로 그대로 30초를 본다.
+  const silence = Date.now() - Date.parse(at);
+  if (silence > (endedWithAnswer ? 3_000 : 30_000)) state = "waiting";
 
   const uniq = (xs) => [...new Set(xs)];
   // 세션 목록에서 찾은 것과 설치 파일을 합친다. 어느 한쪽만 보면 놓친다.
   const allPlugins = uniq([...plugins, ...installedPlugins()]);
+  // 스크립트가 띄운 실행은 대화방이 아니다. 판단 불가(구버전 기록)면 보여 준다 —
+  // 모른다는 것을 안다고 말하지 않는다.
+  // 구버전 기록에는 `origin` 이 없다. 그때 알아볼 수 있는 모양은 headless 한 방짜리다:
+  // 프롬프트 하나, 도구 호출 없음. 사람과 대화 중인 코드 에이전트는 도구를 잡는다.
+  const automated = originAware ? !humanPrompt : promptCount <= 1 && toolCallCount === 0;
+  if (automated) return null;
+
   const counts = countIncremental(found.path);
   // 레벨은 이 세션이 아니라 **여태 쓴 전부**로 정해진다.
   const lv = levelFor(totalTokens());
