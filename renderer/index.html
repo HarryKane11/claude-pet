@@ -394,7 +394,13 @@
 
   let tick = 0;
 
-  window.pet.onAgents((agents) => {
+  // 마지막으로 받은 상태. 아이템을 바꿨을 때처럼 **에이전트와 무관한 이유로**
+  // 다시 그려야 할 때 쓴다. 상태가 바뀔 때까지 기다리면 클릭이 먹지 않은 것처럼
+  // 보인다 — 사람이 무언가를 눌렀으면 그 자리에서 바뀌어야 한다.
+  let lastAgents = [];
+  const redraw = () => render(lastAgents);
+
+  function render(agents) {
     tick += 1;
     const seen = new Set();
 
@@ -527,6 +533,7 @@
           b.onclick = (ev) => {
             ev.stopPropagation();
             localStorage.setItem(b.dataset.k, b.dataset.v);
+            redraw();
           };
         }
       }
@@ -554,5 +561,10 @@
     for (const [id, node] of nodes) {
       if (!seen.has(id)) { node.remove(); nodes.delete(id); }
     }
+  }
+
+  window.pet.onAgents((agents) => {
+    lastAgents = agents || [];
+    render(lastAgents);
   });
 </script>

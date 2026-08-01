@@ -28,6 +28,8 @@ function makeEl(tag = "div") {
     className: "",
     textContent: "",
     _html: "",
+    _parsedFor: null,
+    _parsed: new Map(),
     /** innerHTML 을 몇 번 다시 썼는지 — "안 바뀌면 안 그린다"를 이걸로 본다. */
     writes: 0,
     get innerHTML() {
@@ -48,7 +50,33 @@ function makeEl(tag = "div") {
     removeEventListener() {},
     setAttribute() {},
     getBoundingClientRect: () => ({ left: 0, top: 0, width: 120, height: 80 }),
-    querySelectorAll: () => [],
+    /**
+     * innerHTML 에서 그 클래스를 가진 태그를 찾아 준다.
+     *
+     * 진짜 파서가 아니다 — 갱신 경로가 붙이는 핸들러를 눌러 볼 수 있을 만큼만
+     * 한다. 이게 없으면 버튼에 걸린 코드가 테스트에서 한 번도 안 돌아서,
+     * "아이템이 안 바뀐다" 같은 회귀를 그대로 통과시킨다.
+     */
+    querySelectorAll(sel) {
+      // 같은 innerHTML 에는 같은 노드를 돌려줘야 한다. 매번 새로 만들면 렌더러가
+      // 건 핸들러가 버려져서, 테스트에서 버튼을 눌러도 아무 일이 안 일어난다.
+      if (this._parsedFor !== this._html) {
+        this._parsedFor = this._html;
+        this._parsed = new Map();
+      }
+      if (this._parsed.has(sel)) return this._parsed.get(sel);
+      const cls = sel.replace(/^\./, "");
+      const out = [];
+      const re = new RegExp(`<(\\w+)([^>]*class="[^"]*\\b${cls}\\b[^"]*"[^>]*)>`, "g");
+      let m;
+      while ((m = re.exec(this._html))) {
+        const node = makeEl(m[1]);
+        for (const [, k, v] of m[2].matchAll(/data-(\w+)="([^"]*)"/g)) node.dataset[k] = v;
+        out.push(node);
+      }
+      this._parsed.set(sel, out);
+      return out;
+    },
   };
   // 패널 안에서 `q(".title")` 처럼 찾는다. 클래스마다 노드를 하나씩 만들어 둔다.
   const bag = new Map();
@@ -163,4 +191,24 @@ test("내용이 그대로면 인벤토리를 다시 그리지 않는다", () => 
   // 스킬이 하나 늘면 그때는 다시 그린다.
   app.push([{ ...AGENT, skills: [...AGENT.skills, "bc-lab"] }]);
   assert.equal(inv.writes, drawn + 1, "바뀌면 다시 그려야 한다");
+});
+
+test("아이템을 고르면 그 자리에서 바뀐다", () => {
+  const app = runRenderer();
+  app.push([AGENT]);
+  const pet = app.root.children[0];
+  const weapon = pet.querySelector(".weapon");
+  const before = weapon.src;
+
+  // 지금 든 것과 다른 무기를 고른다.
+  const buttons = pet.querySelector(".weapons").querySelectorAll(".wbtn");
+  assert.ok(buttons.length > 1, "고를 무기가 있어야 한다");
+  // 어느 것이 지금 것인지는 모른다. 다른 것을 누를 때까지 눌러 본다.
+  // 새 상태가 오기를 기다리지 않는다 — 누른 그 순간 바뀌어야 한다.
+  let changed = false;
+  for (const b of buttons) {
+    b.onclick({ stopPropagation() {} });
+    if (weapon.src !== before) { changed = true; break; }
+  }
+  assert.ok(changed, "클릭 즉시 다시 그려야 한다");
 });
