@@ -215,10 +215,10 @@ function drawLegs(g, ch, phase, dy = 0) {
 
 /** 종족을 한눈에 가르는 것. 모자가 없는 행에서는 늘 보인다. */
 function crown(g, ch, dy, i) {
-  if (ch.leaf) leaf(g, dy);
-  if (ch.antenna) antenna(g, dy, i);
+  if (ch.leaf) leaf(g, ch, dy);
+  if (ch.antenna) antenna(g, ch, dy, i);
   if (ch.float) tail(g, ch, dy, i);
-  if (ch.id === "ember") sparks(g, dy, i);
+  if (ch.id === "ember") sparks(g, ch, dy, i);
 }
 
 /** 유령의 아랫자락. 프레임마다 흔들린다. */
@@ -231,14 +231,15 @@ function tail(g, ch, dy, i) {
 }
 
 /** 불씨가 튄다. */
-function sparks(g, dy, i) {
+function sparks(g, ch, dy, i) {
+  const t = topOf(ch, dy) - 4;
   const at = [
     [7, 4],
     [16, 3],
     [12, 2],
   ][i % 3];
-  put(g, at[0], at[1] + dy, "#ffbd77");
-  put(g, at[0] + 1, at[1] + 1 + dy, "#ffe066");
+  put(g, at[0], t + at[1], "#ffbd77");
+  put(g, at[0] + 1, t + at[1] + 1, "#ffe066");
 }
 
 /* ── 소품 ──────────────────────────────────────────────────
@@ -335,18 +336,20 @@ function speed(g, i) {
   }
 }
 
-function leaf(g, dy) {
-  rect(g, 11, 6 + dy, 2, 3, "#4a8f3e");
-  rect(g, 13, 5 + dy, 3, 2, "#63bf52");
-  rect(g, 13, 4 + dy, 3, 1, INK);
-  rect(g, 8, 6 + dy, 3, 2, "#63bf52");
-  rect(g, 8, 5 + dy, 3, 1, INK);
+function leaf(g, ch, dy) {
+  const t = topOf(ch, dy) - 4;
+  rect(g, 11, t + 2, 2, 3, "#4a8f3e");
+  rect(g, 13, t + 1, 3, 2, "#63bf52");
+  rect(g, 13, t, 3, 1, INK);
+  rect(g, 8, t + 2, 3, 2, "#63bf52");
+  rect(g, 8, t + 1, 3, 1, INK);
 }
 
-function antenna(g, dy, i) {
-  rect(g, 11, 5 + dy, 1, 4, "#8fa0c0");
-  rect(g, 10, 3 + dy, 3, 2, i % 2 ? "#ff6b6b" : "#ffd166");
-  rect(g, 10, 2 + dy, 3, 1, INK);
+function antenna(g, ch, dy, i) {
+  const t = topOf(ch, dy) - 4;
+  rect(g, 11, t + 1, 1, 4, "#8fa0c0");
+  rect(g, 10, t - 1, 3, 2, i % 2 ? "#ff6b6b" : "#ffd166");
+  rect(g, 10, t - 2, 3, 1, INK);
 }
 
 /* ── 행 ────────────────────────────────────────────────────

@@ -421,7 +421,11 @@
      행마다 프레임 수가 다르다. 8칸으로 고정하면 중간에 캐릭터가 사라진다 —
      그래서 **캔버스로 직접 센다.** Chromium 이 webp 를 이미 읽을 수 있는데
      프레임 수를 짐작할 이유가 없다. */
-  const ROW = { wait: 0, fix: 3, think: 4, sleep: 5, answer: 6, run: 7, look: 8 };
+  /* 4번 행은 쓰지 않는다. Clawd 에서는 "아이디어가 번쩍" 하는 연출이라 몸을
+     옅은 색으로 다시 그려 놨는데, 생각하는 시간은 대개 길어서 그 옅은 그림에
+     오래 머문다 — 캐릭터가 하얗게 바랜 것처럼 보이고 테두리도 뭉개진다.
+     한순간 지나가라고 그린 프레임을 상태 표시로 쓰면 안 된다. */
+  const ROW = { wait: 5, fix: 3, think: 0, sleep: 5, answer: 6, run: 7, look: 8 };
   const LOOK_TOOLS = new Set(["Read", "Grep", "Glob", "WebSearch", "WebFetch", "NotebookRead"]);
   const RUN_TOOLS = new Set(["Bash", "BashOutput", "KillShell"]);
 

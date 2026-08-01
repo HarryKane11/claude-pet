@@ -1,5 +1,35 @@
 [
   {
+    "id": "rook",
+    "name": "Rook",
+    "hint": "투구를 쓴 기사. 검과 방패.",
+    "sheet": "pets/rook.png"
+  },
+  {
+    "id": "vela",
+    "name": "Vela",
+    "hint": "뾰족 모자를 쓴 마법사. 지팡이.",
+    "sheet": "pets/vela.png"
+  },
+  {
+    "id": "fenn",
+    "name": "Fenn",
+    "hint": "후드를 쓴 순찰자. 활.",
+    "sheet": "pets/fenn.png"
+  },
+  {
+    "id": "nyx",
+    "name": "Nyx",
+    "hint": "복면을 쓴 도적. 단검 둘.",
+    "sheet": "pets/nyx.png"
+  },
+  {
+    "id": "pip",
+    "name": "Pip",
+    "hint": "고글을 쓴 정비공. 렌치.",
+    "sheet": "pets/pip.png"
+  },
+  {
     "id": "blip",
     "name": "Blip",
     "hint": "말랑한 슬라임. 기본값.",
