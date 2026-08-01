@@ -144,11 +144,72 @@
     font-size: 10px; line-height: 1.5; color: rgba(223,229,238,0.6); word-break: break-all;
     min-height: 14px; }
 
-  @keyframes bob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-3px) } }
-  @keyframes tap { 0%,100% { transform: translateY(0) } 50% { transform: translateY(2px) } }
-  .working .char { animation: tap 300ms steps(2, end) infinite; }
-  .thinking .char, .answering .char { animation: bob 2s ease-in-out infinite; }
-  .waiting .char { animation: none; opacity: 0.7; }
+  /* ── 모션 ─────────────────────────────────────────────────
+     마크는 **다시 그리지 않는다.** 공식 마크를 변형해 얼굴이나 팔다리를 만들면
+     그건 더 이상 그 브랜드의 마크가 아니다. 대신 강체로 움직인다 — 기울이고,
+     뛰고, 돌아서고, 살짝 눌린다. 캐릭터로 보이는 건 형태가 아니라 타이밍이다.
+
+     스쿼시·스트레치는 캐릭터 애니메이션의 기본이라 아주 약하게만 쓴다(±6%).
+     그 이상 늘리면 로고가 우스워진다. */
+
+  @keyframes bob   { 0%,100% { transform: translateY(0) }        50% { transform: translateY(-3px) } }
+  @keyframes tap   { 0%,100% { transform: translateY(0) }        50% { transform: translateY(2px) scaleY(0.96) } }
+  @keyframes breathe { 0%,100% { transform: scale(1) }           50% { transform: scale(1.03, 0.97) } }
+  @keyframes think { 0%,100% { transform: rotate(-4deg) }        50% { transform: rotate(4deg) translateY(-1px) } }
+  /* 춤 — 좌우로 기울며 두 박자. 발이 없으니 무게중심을 옮겨서 흉내낸다. */
+  @keyframes dance {
+    0%   { transform: rotate(-9deg) translateY(0) scaleY(1); }
+    25%  { transform: rotate(-9deg) translateY(-5px) scaleY(1.04); }
+    50%  { transform: rotate(9deg)  translateY(0) scaleY(0.96); }
+    75%  { transform: rotate(9deg)  translateY(-5px) scaleY(1.04); }
+    100% { transform: rotate(-9deg) translateY(0) scaleY(1); }
+  }
+  /* 뒤돌기 — 가로로 납작해졌다 반대로 펴진다. 정면/후면 그림이 없어도 도는 것으로 읽힌다. */
+  @keyframes turn {
+    0%   { transform: scaleX(1); }
+    45%  { transform: scaleX(0.08); }
+    55%  { transform: scaleX(-0.08); }
+    100% { transform: scaleX(-1); }
+  }
+  @keyframes hooray {
+    0%,100% { transform: translateY(0) scaleY(1); }
+    30% { transform: translateY(-10px) scaleY(1.06); }
+    45% { transform: translateY(0) scaleY(0.92); }
+    60% { transform: translateY(-5px) scaleY(1.03); }
+  }
+  @keyframes sleep {
+    0%,100% { transform: translateY(0) rotate(-2deg) scaleY(1); }
+    50% { transform: translateY(2px) rotate(-2deg) scaleY(0.94); }
+  }
+  @keyframes fidget {   /* 심심할 때 몸을 살짝 튼다 */
+    0%,88%,100% { transform: rotate(0deg); }
+    92% { transform: rotate(-6deg); }
+    96% { transform: rotate(5deg); }
+  }
+
+  .m-bob     { animation: bob 2s ease-in-out infinite; }
+  .m-tap     { animation: tap 300ms steps(2, end) infinite; }
+  .m-breathe { animation: breathe 3.4s ease-in-out infinite; }
+  .m-think   { animation: think 1.8s ease-in-out infinite; }
+  .m-dance   { animation: dance 720ms ease-in-out infinite; }
+  .m-turn    { animation: turn 900ms ease-in-out infinite alternate; }
+  .m-hooray  { animation: hooray 900ms ease-out 2; }
+  .m-sleep   { animation: sleep 3.6s ease-in-out infinite; }
+  .m-fidget  { animation: fidget 6s ease-in-out infinite; }
+
+  /* 잠들면 Z 가 뜬다 — 상태를 그림으로도, 글자로도 말한다. */
+  .zzz { position: absolute; right: -4px; top: -2px; font-size: 11px; color: #8f9bb3;
+    opacity: 0; animation: zfloat 3.6s ease-in-out infinite; }
+  @keyframes zfloat {
+    0%, 100% { opacity: 0; transform: translateY(0); }
+    40% { opacity: 0.8; transform: translateY(-6px); }
+    70% { opacity: 0; transform: translateY(-11px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .char, .char * { animation: none !important; }
+    .zzz { opacity: 0.6 !important; animation: none !important; }
+  }
 
   #quit { background: none; border: 0; color: rgba(255,255,255,0.22); font-size: 11px;
     cursor: pointer; padding: 2px 4px; align-self: flex-end; }
@@ -164,15 +225,54 @@
   const list = document.getElementById("list");
   document.getElementById("quit").onclick = () => window.pet.quit();
 
-  const ACT = {
-    Read: "읽는 중", Grep: "찾는 중", Glob: "찾는 중", Bash: "실행 중",
-    Edit: "고치는 중", Write: "쓰는 중", WebFetch: "가져오는 중",
-    WebSearch: "찾는 중", Agent: "맡기는 중",
+  /* 대사집.
+     명사(도구·파일 이름)는 기록에서 오고 우리가 붙이는 건 말투뿐이다. 여러 개를
+     두되 **고르는 방식은 결정론적**이다 — 폴링마다 문장이 바뀌면 그 깜빡임이
+     정보처럼 읽히고, 읽으려는 순간 문장이 달라진다. */
+  const LINES = {
+    Read:   ["{}를 펼쳐 보는 중", "{} 정독 중", "{}에 뭐라고 써 있나", "{} 넘겨보는 중"],
+    Grep:   ["{} 뒤지는 중", "{} 어딨나 찾는 중", "{} 수색 중"],
+    Glob:   ["{} 훑는 중", "{} 목록 세는 중"],
+    Bash:   ["{} 두들기는 중", "{} 실행! ", "{} 돌려보는 중", "터미널에 {} 입력 중"],
+    Edit:   ["{} 손보는 중", "{} 고치는 중", "{}에 손대는 중"],
+    Write:  ["{} 쓰는 중", "{} 새로 만드는 중"],
+    WebFetch:  ["{} 가지러 다녀오는 중", "{} 받아오는 중"],
+    WebSearch: ["{} 검색 중", "{} 물어보는 중"],
+    Agent:  ["{}를 부하에게 맡기는 중", "분신 소환: {}", "{} 위임 중"],
+    Task:   ["{} 맡기는 중"],
   };
-  const STATE = {
-    thinking: "결과를 읽는 중", working: "도구를 돌리는 중", answering: "답을 쓰는 중",
-    waiting: "사람을 기다리는 중", idle: "쉬는 중",
+  const STATE_LINES = {
+    thinking:  ["결과를 뜯어보는 중", "음… 이게 무슨 뜻이지", "받은 걸 읽는 중", "머리를 굴리는 중"],
+    working:   ["일하는 중", "손이 바쁜 중", "작업 중"],
+    answering: ["답을 쓰는 중", "정리해서 말하는 중", "보고서 작성 중"],
+    waiting:   ["당신 차례입니다", "기다리는 중…", "심심한 중", "다음 지시 대기 중"],
+    idle:      ["쉬는 중", "빈둥거리는 중"],
   };
+
+  /** 같은 입력이면 같은 문장. 문자열 해시로 고른다. */
+  function pickLine(pool, seed) {
+    if (!pool || !pool.length) return "";
+    let h = 2166136261;
+    for (let i = 0; i < seed.length; i += 1) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return pool[(h >>> 0) % pool.length];
+  }
+
+  /**
+   * 상태 → 모션.
+   *
+   * 일하는 중에는 도구를 두드리고, 읽는 중에는 갸웃거린다. 기다리는 동안에는
+   * **가끔 딴짓을 한다** — 춤추거나, 뒤돌아보거나, 존다. 딴짓은 데이터가 아니라
+   * 캐릭터이고, 그래서 기다릴 때만 한다. 일하는 중에 춤추면 그 춤이 무슨 뜻인지
+   * 찾게 된다.
+   */
+  function motionFor(a, tick) {
+    if (a.state === "working") return "m-tap";
+    if (a.state === "thinking") return "m-think";
+    if (a.state === "answering") return "m-bob";
+    // 기다리는 중 — 20초쯤마다 하나씩 돌아가며
+    const idles = ["m-breathe", "m-fidget", "m-dance", "m-turn", "m-breathe", "m-sleep"];
+    return idles[Math.floor(tick / 10) % idles.length];
+  }
   const TONE = ["#3478f6", "#8b5cf6", "#0ea897", "#e79a18", "#d97757"];
 
   /* 장비 도감 — 사람이 고른다. 고른 값은 남는다.
@@ -259,6 +359,7 @@
         <img class="weapon" alt="" />
         <span class="sp fx"></span>
         <span class="badge"></span>
+        <span class="zzz">z</span>
         <span class="close" title="이 펫 숨기기">×</span>
       </div>`;
     list.appendChild(n);
@@ -266,7 +367,10 @@
     return n;
   }
 
+  let tick = 0;
+
   window.pet.onAgents((agents) => {
+    tick += 1;
     const seen = new Set();
 
     for (const a of agents || []) {
@@ -275,6 +379,14 @@
       seen.add(id);
       const n = ensure(id);
       n.className = `pet ${a.state}`;
+      const charEl = q(".char");
+      const motion = motionFor(a, tick);
+      if (charEl.dataset.motion !== motion) {
+        charEl.classList.remove(...[...charEl.classList].filter((c) => c.startsWith("m-")));
+        charEl.classList.add(motion);
+        charEl.dataset.motion = motion;
+      }
+      q(".zzz").style.display = motion === "m-sleep" ? "block" : "none";
       const q = (s) => n.querySelector(s);
 
       const done = a.state === "waiting" && a.endedWithAnswer;
@@ -307,7 +419,11 @@
 
       q(".title").textContent = a.title || a.source;
       q(".say").textContent = plain(a.lastSay || a.lastPrompt) || "";
-      q(".step").textContent = a.tool ? `${a.tool} ${ACT[a.tool] || "쓰는 중"}` : STATE[a.state] || "";
+      const toolLine = a.tool
+        ? pickLine(LINES[a.tool], a.tool + (a.lastSay || "")).replace("{}", a.tool)
+        : "";
+      q(".step").textContent =
+        toolLine || pickLine(STATE_LINES[a.state], a.state + id) || "";
 
       q(".lv").textContent = `Lv.${a.level ?? 1}`;
       q(".xp i").style.width = `${Math.min(100, ((a.xp ?? 0) / (a.need ?? 1)) * 100)}%`;
