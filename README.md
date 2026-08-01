@@ -28,20 +28,67 @@ Everything on screen comes from files that already exist on your machine:
 | Level | tokens spent, counted incrementally as the transcript grows |
 | Waiting for you | the agent stopped **after answering** — not after a tool call |
 
-Nothing is invented. If a plugin isn't installed, there's no hat. If no skill is
-installed, there's no weapon. An agent that is still working does not get the
-"your turn" badge, because it is not your turn.
+Nothing is invented. An agent that is still working does not get the "your turn"
+badge, because it is not your turn.
+
+Reading is incremental: each session file keeps a cursor, and only the bytes
+appended since the last poll are parsed. A poll costs about **0.04 ms**, so the
+pet can sit there all day without warming your lap.
+
+## Characters
+
+Fifteen characters ship with the app. Pick one by clicking the pet, then choosing
+from the row in the panel — the choice is remembered.
+
+**Heroes** — Rook (knight, sword) · Vela (mage, staff) · Fenn (ranger, bow) ·
+Nyx (rogue, daggers) · Pip (tinker, wrench)
+
+**Friends** — Bunbun (rabbit, carrot) · Choco (bear, honey) · Nimbus (cloud,
+umbrella) · Momo (peach, spoon) · Mocha (coffee cup, straw)
+
+**Creatures** — Blip (slime) · Cog (robot) · Wisp (ghost) · Ember (flame) ·
+Sprout (seed)
+
+Each sheet has nine rows, and the row is chosen by what the agent is actually
+doing:
+
+| Row | When |
+|---|---|
+| Idle / waiting | it's your turn, or nothing is running |
+| Thinking | between your prompt and the first tool call |
+| Searching | `Read` `Grep` `Glob` `WebSearch` `WebFetch` |
+| Running | `Bash` and friends |
+| Fixing | `Edit` `Write`, and everything else |
+| Answering | writing the reply |
+
+### Sprite packs
+
+The built-in sheets use the same atlas format as
+[codex-pets](https://www.npmjs.com/package/codex-pets). Install a pack and it
+shows up in the picker next to the built-in cast:
+
+```bash
+npx codex-pets add clawd
+```
+
+Packs are read in place from `~/.codex/pets/` — nothing is copied into this
+repo, so an artist's sheet stays where they published it.
+
+The grid is measured from the sheet itself, not assumed. Cells are 192×208 in
+every pack, but the number of rows is not (Clawd has 9, Pepe has 11) — guessing
+gets you a character sliced in half.
 
 ## Equipment
 
-Gear is worn because it is **installed**, and it lights up when it is **used**.
+Without a sprite pack the character is the agent's own mark, and gear is worn
+because it is **installed**:
 
 - **Hat** — a plugin is installed. Five to choose from.
 - **Weapon** — a skill is installed. Six to choose from, each with its own swing.
 - **Toolbox pet** — an MCP server is connected. One pet stands for all of them.
 
-Click the character to pin the panel open, then pick your hat and weapon. The
-choice is remembered.
+With a sprite character the gear is already drawn into the frames, so the picker
+shows characters instead. The counts still live in the panel either way.
 
 ## Level
 
@@ -74,18 +121,49 @@ doesn't recount and doesn't double count.
 | Open this session | jump back to that conversation (⌥ for a dashboard) |
 | × | hide this pet until the next session |
 
-## Assets
+The window passes clicks through everywhere except the pet itself, so it never
+takes over the corner of your screen it happens to be sitting in.
 
-The pixel items are generated, not hand-drawn, so the palette and grid stay
-consistent:
+## Art
+
+Every sheet is generated, so the grid, palette and proportions stay consistent
+across fifteen characters — nine rows each, 755 frames in all:
 
 ```bash
 npm run assets
 ```
 
-Each item is one 24×24 character grid in `make-items.mjs`. Editing a hat means
-editing a picture you can see, which is the only way pixel art actually gets
-fixed.
+| File | Makes |
+|---|---|
+| `make-heroes.mjs` | the heroes and friends — one humanoid rig, one entry per character |
+| `make-pets.mjs` | the creatures — silhouette functions instead of a rig |
+| `make-items.mjs` · `make-weapons.mjs` | hats and weapons for the mark-based character |
+
+Drawn on a 24×26 grid and scaled 8×. The proportions aren't taste: characters
+that stay likeable share a few rules — big head, small body, **eyes low on the
+face**, blush above the cheek, no nose or fingers, cut corners. Changing one
+constant in the rig moves all nine rows of every character at once.
+
+No image library. Fixing a sprite shouldn't start with an install.
+
+## Development
+
+```bash
+npm start      # run it
+npm test       # renderer tests, no browser needed
+```
+
+The renderer tests matter more than they look. Electron keeps the window up when
+a renderer throws, so "the process is alive" proves nothing — a panel once went
+completely blank while `pgrep` said everything was fine.
+
+## Attribution
+
+Sprite packs installed through `codex-pets` belong to the people who drew them,
+and this app reads them where they were published rather than redistributing
+them. Clawd is Anthropic's mascot for Claude Code; this project is not
+affiliated with or endorsed by Anthropic or OpenAI, and the built-in characters
+are our own.
 
 ## Where this came from
 

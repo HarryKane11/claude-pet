@@ -27,7 +27,7 @@
   },
   "scripts": {
     "start": "electron .",
-    "assets": "node make-items.mjs && node make-weapons.mjs && node make-pets.mjs",
+    "assets": "node make-items.mjs && node make-weapons.mjs && node make-pets.mjs && node make-heroes.mjs",
     "test": "node --test test/*.test.mjs"
   },
   "repository": {
