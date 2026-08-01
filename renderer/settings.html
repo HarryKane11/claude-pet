@@ -237,31 +237,47 @@
   async function drawMemories() {
     const list = await window.pet.memoryList();
     const box = $("#mems");
-    const dir = (agents[0] || {}).memoryDir;
+    // 저장 위치는 살아 있는 세션이 아니라 메인에게 묻는다. 설정 창을 여는 때는
+    // 대개 일이 끝난 뒤라 도는 세션이 없고, 예전에는 그때 승인 버튼이 아무 일도
+    // 하지 않았다 — 눌러도 반응 없는 버튼은 고장 난 것과 같다.
+    const target = await window.pet.memoryTarget();
+
     if (!list.length) {
       box.innerHTML = `<div class="empty">기억 후보가 없다.<br>
-        <span class="muted">큐레이터가 하루 한두 번 돌면서 남길 만한 것을 골라 둔다.</span></div>`;
+        <span class="muted">큐레이터가 하루 한두 번 돌면서 남길 만한 것을 골라 둔다.
+        급하면 상태 탭에서 «지금 훑기».</span></div>`;
       return;
     }
-    box.innerHTML = list.map((m) => `
+
+    box.innerHTML =
+      list
+        .map(
+          (m) => `
       <div class="mem" data-n="${esc(m.name)}">
         <h3>${esc(m.description || m.name)}<span class="tag">${esc(m.metadata.type || "project")}</span></h3>
         <div class="muted">${esc(m.name)}</div>
         <div class="body">${esc(m.body)}</div>
         <div class="btns">
-          <button class="act yes">승인</button>
+          <button class="act yes"${target.dir ? "" : " disabled"}>승인</button>
           <button class="act no">아니야</button>
+          <span class="muted result"></span>
         </div>
-      </div>`).join("") +
-      (dir ? `<p class="note">승인하면 <code>${esc(dir)}</code> 로 간다.</p>`
-           : `<p class="note">지금 돌고 있는 대화방이 없어서 어디에 넣을지 모른다. 세션을 하나 열고 다시 오면 된다.</p>`);
+      </div>`,
+        )
+        .join("") +
+      (target.dir
+        ? `<p class="note">승인하면 <code>${esc(target.dir)}</code> 로 간다 — ${esc(target.why)}.</p>`
+        : `<p class="note">어디에 넣을지 찾지 못했다 (${esc(target.why)}). 세션을 한 번 열고 다시 오면 된다.</p>`);
 
     for (const el of document.querySelectorAll(".mem")) {
       const name = el.dataset.n;
+      const say = el.querySelector(".result");
       el.querySelector(".yes").onclick = async () => {
-        if (!dir) return;
-        const r = await window.pet.memoryApprove(name, dir);
-        if (r.ok) drawMemories();
+        say.textContent = "쓰는 중…";
+        const r = await window.pet.memoryApprove(name, target.dir);
+        // 성공이든 실패든 **말은 한다.** 조용한 실패가 가장 나쁘다.
+        if (r && r.ok) drawMemories();
+        else say.textContent = (r && r.reason) || "쓰지 못했다";
       };
       el.querySelector(".no").onclick = async () => {
         await window.pet.memoryReject(name, "설정 창에서 거부");

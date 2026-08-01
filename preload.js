@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld("pet", {
   openSettings: () => ipcRenderer.send("settings:open"),
   memoryList: () => ipcRenderer.invoke("memory:list"),
   memoryApprove: (name, dir) => ipcRenderer.invoke("memory:approve", name, dir),
+  memoryTarget: () => ipcRenderer.invoke("memory:target"),
   memoryReject: (name, reason) => ipcRenderer.invoke("memory:reject", name, reason),
   curatorState: () => ipcRenderer.invoke("curator:state"),
   curatorRun: () => ipcRenderer.invoke("curator:run"),

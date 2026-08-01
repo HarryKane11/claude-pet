@@ -172,4 +172,23 @@ async function since(sinceMs) {
   return out;
 }
 
-module.exports = { since, knownMemories, pastRejections };
+/**
+ * 기억을 어디에 넣을지.
+ *
+ * 처음에는 "지금 돌고 있는 대화방" 에서 가져왔다. 그런데 설정 창을 여는 때는
+ * 대개 일이 끝난 뒤라 살아 있는 세션이 없고, 그러면 승인 버튼이 아무 일도 하지
+ * 않았다 — 눌러도 반응이 없는 버튼은 고장 난 것과 같다.
+ *
+ * 그래서 **가장 최근에 쓴 프로젝트**를 기준으로 잡는다. 세션이 살아 있으면
+ * 그게 가장 최근이니 결과도 같다.
+ */
+function targetDir(liveDir) {
+  if (liveDir) return { dir: liveDir, why: "지금 돌고 있는 대화방" };
+  const recent = recentFiles(CLAUDE_ROOT, 0).sort((a, b) => b.mtime - a.mtime)[0];
+  if (!recent) return { dir: null, why: "세션 기록을 찾지 못했다" };
+  const dir = path.join(path.dirname(recent.path), "memory");
+  const when = new Date(recent.mtime);
+  return { dir, why: `가장 최근에 쓴 프로젝트 (${when.getMonth() + 1}/${when.getDate()})` };
+}
+
+module.exports = { since, knownMemories, pastRejections, targetDir };

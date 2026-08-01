@@ -74,6 +74,7 @@ function createWindow() {
   // 있던 슬롯도 그때 사라진다 — 2초마다 툴팁이 끊기는 원인이었다. 바뀐 것이 없으면
   // 아무것도 보내지 않는다.
   let lastSig = "";
+  latest = [];
   const push = () => {
     if (!win || win.isDestroyed()) return;
     const agents = liveAgents();
@@ -87,6 +88,12 @@ function createWindow() {
     if (sig === lastSig && !nudge && !chatter) return;
     lastSig = sig;
     win.webContents.send("agents", agents, nudge, chatter);
+    // 설정 창도 지금 상태를 알아야 한다. 펫 창에만 보냈더니 설정의 "상태" 탭이
+    // 늘 비어 있었고, 저장 위치도 못 구해 승인 버튼이 조용히 아무 일도 안 했다.
+    latest = agents;
+    for (const w of BrowserWindow.getAllWindows()) {
+      if (w !== win && !w.isDestroyed()) w.webContents.send("agents", agents, null, null);
+    }
   };
   push();
   timer = setInterval(push, POLL_MS);
@@ -149,9 +156,12 @@ ipcMain.handle("settings:set", (_e, patch) => {
 
 /* 기억 — 승인 없이 쌓인 기억은 자기 기억이 아니라 남의 기억이다. */
 ipcMain.handle("memory:list", () => memory.pending());
+ipcMain.handle("memory:target", () => material.targetDir((latest[0] || {}).memoryDir));
 ipcMain.handle("memory:approve", (_e, name, dir) => {
+  const to = dir || material.targetDir((latest[0] || {}).memoryDir).dir;
+  if (!to) return { ok: false, reason: "어디에 넣을지 찾지 못했다" };
   try {
-    return { ok: true, ...memory.approve(name, dir) };
+    return { ok: true, ...memory.approve(name, to) };
   } catch (e) {
     return { ok: false, reason: String(e && e.message) };
   }
@@ -245,6 +255,9 @@ ipcMain.on("settings:open", () => {
  * 설정 창을 닫아도. 화면 구석에 있어야 할 것이 조용히 사라지면, 사라졌다는
  * 사실조차 한참 뒤에 알게 된다.
  */
+/** 마지막으로 본 상태. 나중에 열린 창에도 곧바로 줄 수 있어야 한다. */
+let latest = [];
+
 let quitting = false;
 
 /**
