@@ -1,0 +1,32 @@
+[
+  {
+    "id": "blip",
+    "name": "Blip",
+    "hint": "말랑한 슬라임. 기본값.",
+    "sheet": "pets/blip.png"
+  },
+  {
+    "id": "cog",
+    "name": "Cog",
+    "hint": "네모난 작은 로봇.",
+    "sheet": "pets/cog.png"
+  },
+  {
+    "id": "wisp",
+    "name": "Wisp",
+    "hint": "떠다니는 유령. 다리가 없다.",
+    "sheet": "pets/wisp.png"
+  },
+  {
+    "id": "ember",
+    "name": "Ember",
+    "hint": "위가 뾰족한 불씨.",
+    "sheet": "pets/ember.png"
+  },
+  {
+    "id": "sprout",
+    "name": "Sprout",
+    "hint": "잎이 달린 씨앗.",
+    "sheet": "pets/sprout.png"
+  }
+]

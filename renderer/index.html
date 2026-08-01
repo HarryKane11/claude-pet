@@ -483,16 +483,34 @@
     });
   }
 
-  const petUrl = (p) => `file://${encodeURI(p.sheet)}`;
+  // 우리 시트는 앱 안에 있고, 깔린 팩은 밖에 있다.
+  const petUrl = (p) => (p.builtin ? p.sheet : `file://${encodeURI(p.sheet)}`);
   const chosenPet = () => {
     const want = localStorage.getItem("kb-pet");
     if (want === "none") return null;
-    return pets.find((p) => p.id === want) || pets.find((p) => p.id === "clawd") || pets[0] || null;
+    return (
+      pets.find((p) => p.id === want) ||
+      pets.find((p) => p.id === "clawd") ||
+      pets.find((p) => p.id === "blip") ||
+      pets[0] ||
+      null
+    );
   };
 
-  if (window.pet.pets) {
-    window.pet.pets().then(async (list) => {
-      pets = Array.isArray(list) ? list : [];
+  async function builtins() {
+    try {
+      const res = await fetch("pets/index.json");
+      const list = await res.json();
+      return list.map((p) => ({ ...p, builtin: true }));
+    } catch {
+      return [];
+    }
+  }
+
+  {
+    const installed = window.pet.pets ? window.pet.pets() : Promise.resolve([]);
+    Promise.all([builtins(), installed]).then(async ([mine, list]) => {
+      pets = [...mine, ...(Array.isArray(list) ? list : [])];
       for (const p of pets) {
         const g = await measure(petUrl(p));
         if (g) grids.set(p.sheet, g);
@@ -679,9 +697,15 @@
         // 어느 캐릭터로 볼지 하나뿐이다.
         const petRow = pets.length
           ? `<div class="prow">${pets
-              .map((pp) => `<button class="wbtn pbtn${pack && pp.id === pack.id ? " on" : ""}"
+              .map((pp) => {
+                // 썸네일도 한 칸만 보여야 한다. 격자를 안 걸면 시트 전체가
+                // 버튼 안에 우겨넣어진 채로 나온다.
+                const gg = grids.get(pp.sheet);
+                const size = gg ? `background-size:${gg.cols * 100}% ${gg.rows * 100}%;` : "";
+                return `<button class="wbtn pbtn${pack && pp.id === pack.id ? " on" : ""}"
                   data-k="kb-pet" data-v="${pp.id}" title="${esc(pp.name)}"
-                  style="background-image:url('${petUrl(pp)}')"></button>`)
+                  style="${size}background-image:url('${petUrl(pp)}')"></button>`;
+              })
               .join("")}</div>`
           : "";
         picker.innerHTML = pack
