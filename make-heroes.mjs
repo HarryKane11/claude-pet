@@ -103,6 +103,76 @@ const CAST = [
     cape: "#2b2e3d",
   },
   {
+    id: "bunbun",
+    name: "Bunbun",
+    hint: "귀가 긴 토끼. 당근을 든다.",
+    skin: "#f5ede2",
+    cloth: "#f2a3b8",
+    dim: "#c9748d",
+    lit: "#ffc9d8",
+    metal: "#ffffff",
+    blush: "#f28aa8aa",
+    head: "bunny",
+    weapon: "carrot",
+    cape: null,
+  },
+  {
+    id: "choco",
+    name: "Choco",
+    hint: "둥근 귀 곰. 꿀단지를 안는다.",
+    skin: "#c68a5a",
+    cloth: "#8a5a3a",
+    dim: "#5e3b24",
+    lit: "#b57c50",
+    metal: "#ffd166",
+    blush: "#d9705faa",
+    head: "bear",
+    weapon: "honey",
+    cape: null,
+  },
+  {
+    id: "nimbus",
+    name: "Nimbus",
+    hint: "구름 머리. 우산을 든다.",
+    skin: "#eef3fb",
+    cloth: "#7fb8e8",
+    dim: "#4c86bb",
+    lit: "#b3dcff",
+    metal: "#ffffff",
+    blush: "#8fb8e0aa",
+    head: "cloud",
+    weapon: "umbrella",
+    cape: null,
+  },
+  {
+    id: "momo",
+    name: "Momo",
+    hint: "복숭아 머리. 잎이 하나.",
+    skin: "#ffcfd8",
+    cloth: "#7fc48d",
+    dim: "#4f8f5c",
+    lit: "#a8e8b4",
+    metal: "#ffe08a",
+    blush: "#ff9aa8aa",
+    head: "peach",
+    weapon: "spoon",
+    cape: null,
+  },
+  {
+    id: "mocha",
+    name: "Mocha",
+    hint: "컵을 머리에 인 요정. 김이 난다.",
+    skin: "#f0dcc4",
+    cloth: "#a9714a",
+    dim: "#71482c",
+    lit: "#d1a077",
+    metal: "#f6f1e8",
+    blush: "#c98a6aaa",
+    head: "cup",
+    weapon: "straw",
+    cape: null,
+  },
+  {
     id: "pip",
     name: "Pip",
     hint: "고글을 쓴 정비공. 렌치.",
@@ -145,6 +215,8 @@ function arms(g, h, dy, { left = 0, right = 0 } = {}) {
   // 귀여움을 깎아먹는다 — 둥근 뭉툭한 팔이 낫다.
   rect(g, TORSO.x - 2, ARM.y + dy + left, 2, ARM.h, h.cloth);
   rect(g, TORSO.x + TORSO.w, ARM.y + dy + right, 2, ARM.h, h.cloth);
+  // 손을 무기 쪽으로 한 칸 뻗는다. 팔과 무기 사이가 비면 들고 있는 것으로 안 보인다.
+  rect(g, TORSO.x + TORSO.w + 2, ARM.y + dy + right + ARM.h - 1, 1, 2, h.cloth);
   rect(g, TORSO.x - 2, ARM.y + dy + left + ARM.h, 2, 1, h.skin);
   rect(g, TORSO.x + TORSO.w, ARM.y + dy + right + ARM.h, 2, 1, h.skin);
 }
@@ -249,15 +321,81 @@ function headgear(g, h, dy) {
       rect(g, x, t + 1, 4, 3, "#8fc7ff");
       rect(g, x + w - 4, t + 1, 4, 3, "#8fc7ff");
       break;
+    case "bunny": {
+      // 긴 귀 둘. 실루엣만으로 토끼가 되는 유일한 부위다.
+      const ex = [x + 2, x + w - 5];
+      ex.forEach((bx, k) => {
+        const tilt = k ? 1 : -1;
+        for (let i = 0; i < 8; i++) {
+          const yy = t - 1 - i;
+          const xx = bx + Math.round((i / 8) * 2) * tilt;
+          rect(g, xx, yy, 3, 1, h.skin);
+          if (i > 1 && i < 7) put(g, xx + 1, yy, h.cloth); // 귀 안쪽
+        }
+      });
+      break;
+    }
+    case "bear":
+      // 둥근 귀는 머리 위가 아니라 **옆 위**에 붙는다. 위에 얹으면 곰이 아니라 인형이다.
+      rect(g, x - 1, t - 3, 5, 5, h.skin);
+      rect(g, x + w - 4, t - 3, 5, 5, h.skin);
+      rect(g, x, t - 2, 3, 3, h.dim);
+      rect(g, x + w - 3, t - 2, 3, 3, h.dim);
+      break;
+    case "cloud": {
+      // 뭉게뭉게 — 크기가 다른 덩어리 셋을 겹친다. 같은 크기로 늘어놓으면 구름이 아니다.
+      const puff = [
+        [x - 1, t - 4, 6, 5],
+        [x + 4, t - 6, 7, 6],
+        [x + w - 4, t - 3, 5, 4],
+      ];
+      for (const [px, py, pw, ph] of puff) rect(g, px, py, pw, ph, h.metal);
+      break;
+    }
+    case "peach":
+      // 위가 살짝 갈라진 복숭아. 잎 하나가 전부다.
+      rect(g, x + 1, t - 3, w - 2, 4, h.skin);
+      rect(g, x + 3, t - 4, w - 6, 1, h.skin);
+      rect(g, x + Math.round(w / 2) - 1, t - 3, 1, 3, "#e8a8b4"); // 골
+      rect(g, x + Math.round(w / 2) + 1, t - 7, 4, 2, h.cloth); // 잎
+      rect(g, x + Math.round(w / 2) + 2, t - 8, 2, 1, h.dim);
+      rect(g, x + Math.round(w / 2), t - 5, 1, 2, "#8a5a3a"); // 꼭지
+      break;
+    case "cup":
+      // 머리에 인 잔. 김은 프레임마다 흔들려야 뜨거워 보인다.
+      rect(g, x, t - 6, w, 6, h.metal);
+      rect(g, x + 1, t - 5, w - 2, 3, h.cloth);
+      rect(g, x - 2, t - 5, 2, 3, h.metal); // 손잡이
+      rect(g, x - 3, t - 4, 1, 1, h.metal);
+      rect(g, x - 1, t - 7, w + 2, 1, h.metal); // 잔 테두리
+      break;
     default:
       break;
+  }
+}
+
+/* 김·귀 흔들림처럼 **프레임마다 달라지는** 머리 장식. 위 함수는 정지 상태만 그린다. */
+function headFx(g, h, dy, i) {
+  const { x, y, w } = HEAD;
+  const t = y + dy;
+  if (h.head === "cup") {
+    for (let k = 0; k < 3; k++) {
+      const sx = x + 3 + k * 4 + ((i + k) % 2);
+      rect(g, sx, t - 10 - k, 1, 2, "#ffffff55");
+    }
+  }
+  if (h.head === "cloud" && i % 3 === 0) {
+    put(g, x + 3, t + 2, "#8fc7ff");
+    put(g, x + w - 4, t + 3, "#8fc7ff");
   }
 }
 
 /* ── 손에 든 것 ────────────────────────────────────────────── */
 
 function weapon(g, h, dy, raise = 0) {
-  const x = TORSO.x + TORSO.w + 1;
+  // 팔이 x = TORSO.x + TORSO.w 부터 두 칸이다. 거기서 바로 시작하면 무기가
+  // 몸에 붙어 손에 든 것으로 안 보인다 — 손 바깥에서 시작한다.
+  const x = TORSO.x + TORSO.w + 3;
   const y = ARM.y + dy + ARM.h - raise;
   switch (h.weapon) {
     case "sword":
@@ -266,9 +404,11 @@ function weapon(g, h, dy, raise = 0) {
       rect(g, x, y, 2, 2, "#6a4a26");
       break;
     case "staff":
-      rect(g, x, y - 11, 2, 12, "#8a6a3a");
-      rect(g, x - 1, y - 13, 4, 3, h.metal);
-      rect(g, x, y - 14, 2, 1, h.metal);
+      rect(g, x, y - 12, 2, 13, "#8a6a3a");
+      rect(g, x - 1, y - 15, 4, 3, h.metal);
+      rect(g, x, y - 16, 2, 1, h.metal);
+      put(g, x - 2, y - 17, h.metal); // 반짝
+      put(g, x + 3, y - 17, h.metal);
       break;
     case "bow":
       for (let i = 0; i < 9; i++) {
@@ -288,6 +428,30 @@ function weapon(g, h, dy, raise = 0) {
       rect(g, x - 1, y - 8, 4, 2, "#dfe6f0");
       put(g, x, y - 7, INK);
       put(g, x + 1, y - 7, INK);
+      break;
+    case "carrot":
+      rect(g, x, y - 6, 3, 6, "#e8833a");
+      rect(g, x + 1, y, 1, 2, "#c96a26");
+      rect(g, x, y - 8, 1, 2, "#5fa85f");
+      rect(g, x + 2, y - 8, 1, 2, "#5fa85f");
+      break;
+    case "honey":
+      rect(g, x, y - 5, 5, 5, "#e8c07a");
+      rect(g, x - 1, y - 6, 7, 1, "#f6f1e8");
+      rect(g, x + 1, y - 4, 3, 2, "#c98a3a");
+      break;
+    case "umbrella":
+      rect(g, x + 1, y - 8, 1, 9, "#6a4a26");
+      for (let k = 0; k < 4; k++) rect(g, x - 1 - k + 2, y - 9 - k, 3 + k * 2, 1, k % 2 ? "#f2a3b8" : "#7fb8e8");
+      rect(g, x + 1, y + 1, 2, 1, "#6a4a26");
+      break;
+    case "spoon":
+      rect(g, x + 1, y - 6, 1, 7, h.metal);
+      rect(g, x, y - 9, 3, 3, h.metal);
+      break;
+    case "straw":
+      rect(g, x + 1, y - 8, 2, 9, "#e86a7a");
+      rect(g, x + 1, y - 10, 4, 2, "#e86a7a");
       break;
     default:
       break;
@@ -365,6 +529,7 @@ function frameOf(h, row, i) {
       arms(g, h, dy);
       head(g, h, dy, { closed: i === 4, look: i > 2 ? 1 : 0 });
       headgear(g, h, dy);
+      headFx(g, h, dy, i);
       weapon(g, h, dy);
       break;
     }
@@ -376,6 +541,7 @@ function frameOf(h, row, i) {
       arms(g, h, dy, { left: i % 2 ? -1 : 1, right: i % 2 ? 1 : -1 });
       head(g, h, dy);
       headgear(g, h, dy);
+      headFx(g, h, dy, i);
       weapon(g, h, dy);
       break;
     }
@@ -388,6 +554,7 @@ function frameOf(h, row, i) {
       arms(g, h, dy, { right: -3 });
       head(g, h, dy, { look: 1, mouth: "open" });
       headgear(g, h, dy);
+      headFx(g, h, dy, i);
       weapon(g, h, dy, 4);
       break;
     }
@@ -400,6 +567,7 @@ function frameOf(h, row, i) {
       arms(g, h, dy, { right: -swing });
       head(g, h, dy, { look: 1 });
       headgear(g, h, dy);
+      headFx(g, h, dy, i);
       weapon(g, h, dy, swing);
       break;
     }
@@ -412,6 +580,7 @@ function frameOf(h, row, i) {
       arms(g, h, dy, { left: -2 });
       head(g, h, dy, { closed: i === 1, look: -1 });
       headgear(g, h, dy);
+      headFx(g, h, dy, i);
       bulb(g, dy, i >= 2);
       break;
     }
@@ -424,6 +593,7 @@ function frameOf(h, row, i) {
       arms(g, h, dy, { left: 1, right: 1 });
       head(g, h, dy + 1, { closed: true });
       headgear(g, h, dy + 1);
+      headFx(g, h, dy + 1, i);
       zzz(g, Math.floor(i / 2));
       break;
     }
@@ -436,6 +606,7 @@ function frameOf(h, row, i) {
       arms(g, h, dy, { right: i % 2 ? -2 : -1 });
       head(g, h, dy, { look: i % 2 ? 1 : 0, mouth: i % 2 ? "open" : "smile" });
       headgear(g, h, dy);
+      headFx(g, h, dy, i);
       break;
     }
     case "run": {
@@ -447,6 +618,7 @@ function frameOf(h, row, i) {
       arms(g, h, dy, { left: i % 2 ? -2 : 2, right: i % 2 ? 2 : -2 });
       head(g, h, dy, { look: 1 });
       headgear(g, h, dy);
+      headFx(g, h, dy, i);
       dust(g, dy, i);
       break;
     }
@@ -458,6 +630,7 @@ function frameOf(h, row, i) {
       arms(g, h, dy, { right: -2 });
       head(g, h, dy, { look: i % 3 === 0 ? -1 : 1 });
       headgear(g, h, dy);
+      headFx(g, h, dy, i);
       lantern(g, dy, i);
       break;
     }

@@ -557,11 +557,19 @@
       // 모션은 `q` 가 생긴 뒤에 건다 — 앞에 두면 선언 전 접근이라 콜백이 통째로 죽고,
       // 화면에는 빈 패널만 남는다 (실제로 그렇게 됐다).
       const charEl = q(".char");
-      const motion = motionFor(a, tick);
+      // 어떤 캐릭터로 그릴지가 먼저다. 모션도 인벤토리도 이 답에 따라 갈린다 —
+      // 아래에서 선언해 두고 여기서 쓰면 콜백이 통째로 죽는다(또 그랬다).
+      const pack = chosenPet();
+      const grid = pack ? grids.get(pack.sheet) : null;
+      /* 스프라이트 시트를 쓸 때는 몸통을 기울이지 않는다.
+         이 모션들은 마크를 다시 그릴 수 없던 시절의 것이다 — 로고를 통째로
+         돌리고 눌러서 캐릭터인 척했다. 프레임이 직접 연기하는 지금은 둘이
+         겹쳐서 캐릭터가 좌우로 떨리기만 한다. 자는 것만 남긴다(Z 표시 때문). */
+      const motion = grid ? (a.state === "idle" ? "m-sleep" : "") : motionFor(a, tick);
       if (charEl.dataset.motion !== motion) {
         // 클래스를 통째로 다시 쓴다. 이전 모션만 골라 지우는 것보다 짧고,
         // 어떤 상태에서 시작하든 결과가 같다.
-        charEl.className = `char ${motion}`;
+        charEl.className = motion ? `char ${motion}` : "char";
         charEl.dataset.motion = motion;
       }
       q(".zzz").style.display = motion === "m-sleep" ? "block" : "none";
@@ -572,8 +580,6 @@
 
       // 스프라이트 팩이 있으면 캐릭터는 그쪽이다. 팩 안에 이미 모자·도구가
       // 그려져 있어서, 우리 모자를 덧씌우면 둘 다 이상해진다.
-      const pack = chosenPet();
-      const grid = pack ? grids.get(pack.sheet) : null;
       n.classList.toggle("sprite", Boolean(grid));
       if (grid) {
         const sheet = q(".sheet");

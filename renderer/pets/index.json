@@ -24,6 +24,36 @@
     "sheet": "pets/nyx.png"
   },
   {
+    "id": "bunbun",
+    "name": "Bunbun",
+    "hint": "귀가 긴 토끼. 당근을 든다.",
+    "sheet": "pets/bunbun.png"
+  },
+  {
+    "id": "choco",
+    "name": "Choco",
+    "hint": "둥근 귀 곰. 꿀단지를 안는다.",
+    "sheet": "pets/choco.png"
+  },
+  {
+    "id": "nimbus",
+    "name": "Nimbus",
+    "hint": "구름 머리. 우산을 든다.",
+    "sheet": "pets/nimbus.png"
+  },
+  {
+    "id": "momo",
+    "name": "Momo",
+    "hint": "복숭아 머리. 잎이 하나.",
+    "sheet": "pets/momo.png"
+  },
+  {
+    "id": "mocha",
+    "name": "Mocha",
+    "hint": "컵을 머리에 인 요정. 김이 난다.",
+    "sheet": "pets/mocha.png"
+  },
+  {
     "id": "pip",
     "name": "Pip",
     "hint": "고글을 쓴 정비공. 렌치.",
