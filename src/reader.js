@@ -3,11 +3,9 @@
 /**
  * 지금 돌고 있는 코드 에이전트를 세션 파일에서 읽는다.
  *
- * 의존성이 없다 — `node:fs` 만 쓴다. 펫은 kibitz 서버가 떠 있지 않아도 혼자 돌아야
- * 하고, 훅을 깔라고 요구해서도 안 된다. 그래서 웹의 `lib/live-agent.ts` 와 같은
- * 규칙을 여기에 순수 JS 로 한 벌 더 둔다. 두 벌이 되는 것은 알고 있고, 그 대신
- * **읽기 전용**이라 판정이 갈릴 여지가 없다 — 여기서 계산하는 것은 화면에 띄울
- * 현재 상태뿐이고, 트레이스는 만들지 않는다.
+ * 의존성이 없다 — `node:fs` 만 쓴다. 서버가 떠 있지 않아도 혼자 돌아야 하고,
+ * 훅을 깔라고 요구해서도 안 된다. 읽기만 하므로 남의 기록을 건드릴 일도 없다 —
+ * 여기서 계산하는 것은 화면에 띄울 현재 상태뿐이다.
  */
 
 const fs = require("node:fs");
@@ -215,8 +213,8 @@ function countIncremental(file) {
       if (o.type === "assistant" && Array.isArray(o.message?.content)) {
         const calls = o.message.content.filter((b) => b && b.type === "tool_use").length;
         c.obs += calls || 1;
-        // 토큰은 메시지 단위 실측값이다. kibitz 의 `totalTokens` 와 같은 식으로 센다:
-        // 캐시 기록 + 새 입력 + 출력. 캐시 **읽기**는 빼는데, 그건 다시 낸 값이 아니다.
+        // 토큰은 메시지 단위 실측값이다: 캐시 기록 + 새 입력 + 출력.
+        // 캐시 **읽기**는 빼는데, 그건 다시 낸 값이 아니다.
         const u = o.message.usage || {};
         c.tokens +=
           (Number(u.cache_creation_input_tokens) || 0) +

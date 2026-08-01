@@ -4,8 +4,7 @@
  * claude-pet — 데스크탑 펫.
  *
  * 항상 위에 떠 있는 작은 투명 창 하나. 지금 돌고 있는 코드 에이전트의 상태를
- * 세션 파일에서 직접 읽어 캐릭터로 보여 준다 — kibitz 서버가 떠 있지 않아도 되고,
- * 훅을 깔 필요도 없다.
+ * 세션 파일에서 직접 읽어 캐릭터로 보여 준다 — 서버도 훅도 필요 없다.
  *
  * 창은 마우스를 통과시키지 않는다(클릭해서 접을 수 있어야 한다). 대신 작고,
  * 드래그로 옮길 수 있고, 아무 에이전트도 안 돌면 스스로 숨는다 — 안 쓰는 동안
@@ -350,32 +349,26 @@ ipcMain.on("drag", (_e, dx, dy) => {
 });
 
 /**
- * 그 세션을 대시보드에서 연다.
- *
- * 주소는 `KIBITZ_URL` 로 바꿀 수 있다 — `kibitzer serve` 는 4000, `pnpm dev` 는 3000
- * 이라서 하나로 못 박으면 둘 중 하나는 늘 틀린다.
- */
-/**
- * 그 대화방을 연다.
+ * 그 대화방으로 돌아간다.
  *
  * Claude 데스크탑 앱이 `claude://resume` 딥링크를 등록해 두었으므로 그리로 보낸다 —
  * 사람이 원하는 건 트레이스 페이지가 아니라 **그 대화방으로 돌아가는 것**이다.
  * 열리지 않는 경우를 대비해 두 번째 인자로 대시보드 주소를 받는다.
  */
-ipcMain.on("open-session", (_e, sessionId, fallbackToDashboard) => {
-  if (sessionId && !fallbackToDashboard) {
-    shell
-      .openExternal(`claude://resume?sessionId=${encodeURIComponent(sessionId)}`)
-      .catch(() => {
-        // 딥링크를 못 열면 **이미 떠 있는 앱을 앞으로** 가져오는 것까지는 해 준다.
-        // 아무 일도 안 일어나는 클릭보다는 낫다.
-        if (process.platform === "darwin") spawn("open", ["-a", "Claude"], { stdio: "ignore" });
-      });
-    return;
-  }
-  const base = process.env.KIBITZ_URL || "http://localhost:4000";
-  const url = sessionId ? `${base}/sessions/${encodeURIComponent(sessionId)}` : base;
-  void shell.openExternal(url);
+/**
+ * 그 대화방으로 돌아간다.
+ *
+ * 예전에는 여기서 kibitz 대시보드도 열었다. 그건 이 앱이 kibitz 의 일부였을 때
+ * 이야기다 — 지금은 안 깔려 있을 서버의 4000 포트를 두드리는 죽은 길이다.
+ * 남는 것은 에이전트 앱을 앞으로 가져오는 것 하나고, 그거면 충분하다.
+ */
+ipcMain.on("open-session", (_e, sessionId) => {
+  const deep = sessionId ? `claude://resume?sessionId=${encodeURIComponent(sessionId)}` : "claude://";
+  shell.openExternal(deep).catch(() => {
+    // 딥링크를 못 열면 **이미 떠 있는 앱을 앞으로** 가져오는 것까지는 해 준다.
+    // 아무 일도 안 일어나는 클릭보다는 낫다.
+    if (process.platform === "darwin") spawn("open", ["-a", "Claude"], { stdio: "ignore" });
+  });
 });
 
 // 펫은 하나만 뜬다. 두 마리가 겹쳐 뜨면 어느 쪽이 진짜인지 알 수 없다.

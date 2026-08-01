@@ -109,10 +109,10 @@ JSON 하나만. 설명도 코드펜스도 없이.
   ],
   "memories": [
     {
-      "name": "kibitz-no-image-deps",
-      "description": "kibitz/claude-pet 은 이미지 라이브러리를 쓰지 않는다",
+      "name": "claude-pet-no-image-deps",
+      "description": "claude-pet 은 이미지 라이브러리를 쓰지 않는다",
       "type": "project",
-      "body": "PNG·GIF 인코더를 직접 두는 이유는 취향이 아니라, 저장소를 클론한 사람이 스프라이트 하나 고치려고 설치부터 하지 않게 하기 위해서다. [[kibitz-sprite-atlas]]",
+      "body": "PNG·GIF 인코더를 직접 두는 이유는 취향이 아니라, 저장소를 클론한 사람이 스프라이트 하나 고치려고 설치부터 하지 않게 하기 위해서다. [[claude-pet-sprite-atlas]]",
       "sources": ["3f4972f5#req-12"],
       "supersedes": [],
       "confidence": 0.8

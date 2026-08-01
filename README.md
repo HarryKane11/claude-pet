@@ -206,9 +206,8 @@ later ones do not — which is the point.
 The running total is kept per file in `~/.claude-pet/progress.json`, so restarting
 doesn't recount and doesn't double count.
 
-*(This directory used to be `~/.kibitz-pet`, from when the pet lived inside
-kibitz. It moves itself across on first run — losing someone's level to a rename
-would be a poor trade for a tidier name.)*
+*(It used to be `~/.kibitz-pet`. It moves itself across on first run — losing
+someone's level to a rename would be a poor trade for a tidier name.)*
 
 ## Controls
 
@@ -337,9 +336,9 @@ are our own.
 
 ## Where this came from
 
-Split out of [kibitz](https://github.com/HarryKane11/kibitz), which traces what
-coding agents did after the fact. This is the other half: what one is doing while
-it's doing it. The idea of a desktop pet reading Claude Code state comes from
+It started inside [kibitz](https://github.com/HarryKane11/kibitz) and now stands
+on its own — nothing here talks to it, or needs it installed. The idea of a
+desktop pet reading Claude Code state comes from
 [nunchi](https://github.com/ysksean/nunchi).
 
 ## License

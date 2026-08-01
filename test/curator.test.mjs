@@ -63,11 +63,11 @@ test("보내는 자료에는 준 것만 들어간다", () => {
   const p = buildPayload({
     prompts: ["최적화 전부 적용하자"],
     done: ["폴링 62ms → 0.04ms"],
-    known: ["kibitz-no-image-deps"],
+    known: ["claude-pet-no-image-deps"],
     rejected: [{ name: "readme-updated", reason: "git 이력을 보면 안다" }],
   });
   assert.match(p, /최적화 전부 적용하자/);
-  assert.match(p, /kibitz-no-image-deps/, "이미 아는 기억을 알려야 또 뽑지 않는다");
+  assert.match(p, /claude-pet-no-image-deps/, "이미 아는 기억을 알려야 또 뽑지 않는다");
   assert.match(p, /git 이력을 보면 안다/, "지난 거부 이유도 같이 보낸다");
   assert.equal(/최근에 한 말/.test(p), false, "빈 항목은 아예 안 보낸다 — 보내는 양이 비용이다");
 });

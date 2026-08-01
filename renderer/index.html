@@ -789,9 +789,8 @@
       open.textContent = "이 대화방 열기";
       open.onclick = (ev) => {
         ev.stopPropagation();
-        window.pet.openSession(a.sessionId, ev.altKey);
+        window.pet.openSession(a.sessionId);
       };
-      open.title = "⌥클릭: kibitz 대시보드에서 보기";
     }
 
     for (const [id, node] of nodes) {
