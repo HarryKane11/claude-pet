@@ -379,15 +379,19 @@
       seen.add(id);
       const n = ensure(id);
       n.className = `pet ${a.state}`;
+      const q = (s) => n.querySelector(s);
+
+      // 모션은 `q` 가 생긴 뒤에 건다 — 앞에 두면 선언 전 접근이라 콜백이 통째로 죽고,
+      // 화면에는 빈 패널만 남는다 (실제로 그렇게 됐다).
       const charEl = q(".char");
       const motion = motionFor(a, tick);
       if (charEl.dataset.motion !== motion) {
-        charEl.classList.remove(...[...charEl.classList].filter((c) => c.startsWith("m-")));
-        charEl.classList.add(motion);
+        // 클래스를 통째로 다시 쓴다. 이전 모션만 골라 지우는 것보다 짧고,
+        // 어떤 상태에서 시작하든 결과가 같다.
+        charEl.className = `char ${motion}`;
         charEl.dataset.motion = motion;
       }
       q(".zzz").style.display = motion === "m-sleep" ? "block" : "none";
-      const q = (s) => n.querySelector(s);
 
       const done = a.state === "waiting" && a.endedWithAnswer;
       if (done && !wasDone.get(id)) unseen.set(id, (unseen.get(id) || 0) + 1);
