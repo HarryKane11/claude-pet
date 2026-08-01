@@ -84,7 +84,14 @@ Levels that don't change anything are just a number. Characters grow with yours:
 |---|---|---|
 | 1 | Lv.1 | the base character |
 | 2 | Lv.15 | gold trim, shoulder guards, a scarf — the silhouette widens |
-| 3 | Lv.35 | crown, horns and a drifting aura — it grows upward, which reads from further away |
+| 3 | Lv.35 | what that character already was, more so |
+
+Nobody gets the same crown. A knight who gets a crown has been promoted; a rabbit
+who gets a crown is just a rabbit wearing a crown. So each one grows into itself
+— the knight's armour thickens and its plume grows, the mage gains orbiting
+stars, the rabbit's ears lengthen, the cloud starts raining, the rogue leaves an
+afterimage. Evolution is not becoming something else; it is becoming more of
+yourself.
 
 <p align="center">
   <img src="docs/evolution.png" alt="Three evolution stages for four characters" width="318">
@@ -202,6 +209,31 @@ npm test       # renderer tests, no browser needed
 The renderer tests matter more than they look. Electron keeps the window up when
 a renderer throws, so "the process is alive" proves nothing — a panel once went
 completely blank while `pgrep` said everything was fine.
+
+## Memory
+
+The pet proposes what to remember; you approve. Approved memories are written
+where your agent already reads them — `<project>/memory/<name>.md` plus a line in
+`MEMORY.md` — so the next session actually loads them. A memory nobody reads is
+not a memory.
+
+No vector store, no graph database, no embeddings. Not out of laziness: at this
+size (hundreds of facts, one query — "what matters in this project") a list plus
+an index beats a nearest-neighbour search, and you can read and edit it yourself.
+
+Four ideas were worth taking from the literature:
+
+| Idea | From | Why |
+|---|---|---|
+| Validity windows | [Zep](https://arxiv.org/abs/2501.13956) | A fact has a lifetime. Superseded facts are retired, not deleted — *when* it stopped being true is information |
+| Usage feedback | [RMM, ACL 2025](https://aclanthology.org/2025.acl-long.413/) | Memories that actually get cited rank higher; unused ones fade (30-day half-life) |
+| Promote and reject | memory-lake | Candidate → fact → rule. Rejections are logged **with a reason** — the way automatic extraction fails is not by storing wrong things but by storing anything |
+| Links | [A-MEM](https://arxiv.org/abs/2502.12110) | `[[name]]` between notes; new facts update old ones |
+
+The extraction itself runs once or twice a day through whichever coding agent you
+already have (`prompts/curator.md`). It gets no tools and no file access — the
+pet assembles the input, the agent returns JSON, the pet validates and writes.
+That way we can say exactly what left the machine.
 
 ## Attribution
 

@@ -693,10 +693,20 @@ const F = (n) => Math.round(n * U);
  * 굵은 형태를 다시 그리지 않고 **얹기만** 한다. 그래야 세 단계가 한 사람으로
  * 보인다 — 진화는 다른 캐릭터가 되는 게 아니라 같은 캐릭터가 자란 것이다.
  */
-/** 진화 표식 색. 캐릭터 팔레트에서 가져오면 안 된다 — Rook 은 metal 이 투구 색이라
-    오라를 그려도 투구에 묻혀 아무것도 안 보였다. 진화는 눈에 띄어야 진화다. */
-const ACCENT = "#ffd54a";
-const ACCENT_LIT = "#fff3c4";
+/* ── 진화 표식 ────────────────────────────────────────────
+   모두에게 왕관을 씌우면 진화가 아니라 스티커다. 기사가 왕관을 쓰면 승급이지만
+   토끼가 왕관을 쓰면 그냥 토끼가 왕관을 쓴 것이다.
+
+   그래서 **그 캐릭터가 원래 가진 것을 키운다.** 기사는 갑옷이 두꺼워지고,
+   마법사는 별이 늘고, 토끼는 귀가 길어지고, 구름은 비를 내린다. 진화는 다른
+   것이 되는 게 아니라 자기 자신이 더 되는 것이다.
+
+   색도 캐릭터에서 가져온다 — 다만 팔레트를 그대로 쓰면 안 된다. Rook 은
+   metal 이 투구 색이라 오라를 그려도 투구에 묻혀 아무것도 안 보였다. */
+
+const GLOW = { rook: "#ffd54a", vela: "#a98bff", fenn: "#8fe08a", nyx: "#7fd8ff",
+  pip: "#ffb347", bunbun: "#ffd0e0", choco: "#ffd166", nimbus: "#bfe6ff",
+  momo: "#ff9ec4", mocha: "#f0c88a" };
 
 function evolve(g, h, stage, row, i, dy) {
   if (stage < 2) return;
@@ -707,47 +717,192 @@ function evolve(g, h, stage, row, i, dy) {
   const tx = F(TORSO.x);
   const ty = F(TORSO.y + dy);
   const tw = F(TORSO.w);
+  const cx = hx + Math.round(hw / 2);
+  const glow = GLOW[h.id] || "#ffd54a";
+  const kit = { g, h, hx, hy, hw, hh, tx, ty, tw, cx, glow, i, stage };
 
-  /* 2단계 — 어깨가 넓어지고 목에 두른 것이 생긴다.
-     머리가 커서 몸통에 뭘 그려도 가려진다. 그래서 **머리 바깥으로** 나가야 한다. */
-  rect(g, hx - 4, hy + hh - 2, 5, 5, ACCENT);
-  rect(g, hx + hw - 1, hy + hh - 2, 5, 5, ACCENT);
+  MARKS[h.id] ? MARKS[h.id](kit) : generic(kit);
+}
+
+/** 어깨를 넓히는 것은 공통이다. 사람이 커 보이는 가장 싼 방법이고, 큰 머리에
+    가리지 않는 유일한 자리이기도 하다. */
+function pauldrons({ g, hx, hy, hh, hw, glow }) {
+  rect(g, hx - 4, hy + hh - 2, 5, 5, glow);
+  rect(g, hx + hw - 1, hy + hh - 2, 5, 5, glow);
   rect(g, hx - 4, hy + hh + 3, 5, 1, INK);
   rect(g, hx + hw - 1, hy + hh + 3, 5, 1, INK);
-  // 머리 장비를 두르는 띠 — 어느 모자를 썼든 같은 자리에 온다.
-  rect(g, hx - 1, hy + 1, hw + 2, 2, ACCENT);
+}
 
-  if (stage < 3) return;
-
-  /* 3단계 — 위로 자란다. 옆으로 넓어지는 것보다 위로 솟는 쪽이 멀리서 먼저 읽힌다. */
-  const cx = hx + Math.round(hw / 2);
-  rect(g, hx + 2, hy - 4, hw - 4, 3, ACCENT); // 관
-  rect(g, hx + 2, hy - 5, hw - 4, 1, INK);
-  for (const [px, ph] of [
-    [hx + 3, 5],
-    [cx - 1, 8],
-    [hx + hw - 5, 5],
-  ]) {
-    rect(g, px, hy - 4 - ph, 2, ph, ACCENT); // 뿔 셋
-    rect(g, px, hy - 5 - ph, 2, 1, ACCENT_LIT);
-  }
-
-  // 오라 — 프레임마다 자리를 옮겨야 빛으로 읽힌다. 가만히 있으면 그냥 점이다.
-  const spots = [
-    [hx - 7, hy + 5],
-    [hx + hw + 4, hy + 8],
-    [tx - 9, ty + 7],
-    [tx + tw + 6, ty + 3],
-    [hx - 5, hy - 3],
-    [hx + hw + 2, hy - 5],
-  ];
+/** 프레임마다 자리를 옮기는 반짝임. 가만히 있으면 빛이 아니라 점이다. */
+function sparkle(g, spots, i, glow, lit = "#ffffff") {
   spots.forEach(([px, py], k) => {
     if ((i + k) % 3 !== 0) return;
-    put(g, px, py, ACCENT_LIT);
-    put(g, px + 1, py - 1, ACCENT);
-    put(g, px, py - 2, ACCENT_LIT);
+    put(g, px, py, lit);
+    put(g, px + 1, py - 1, glow);
+    put(g, px, py - 2, lit);
   });
 }
+
+function generic(k) {
+  pauldrons(k);
+  const { g, hx, hy, hw, glow, i, stage } = k;
+  rect(g, hx - 1, hy + 1, hw + 2, 2, glow);
+  if (stage < 3) return;
+  sparkle(g, [[hx - 6, hy + 4], [hx + hw + 3, hy + 6], [hx - 4, hy - 3]], i, glow);
+}
+
+const MARKS = {
+  // 기사 — 갑옷이 두꺼워지고, 투구 깃이 자란다. 승급하는 군인.
+  rook(k) {
+    const { g, hx, hy, hw, cx, glow, i, stage } = k;
+    pauldrons(k);
+    rect(g, hx - 1, hy + 2, hw + 2, 2, glow); // 투구 띠
+    if (stage < 3) return;
+    rect(g, cx - 3, hy - 6, 6, 3, glow); // 넓은 깃 받침
+    rect(g, cx - 1, hy - 14, 2, 8, "#c4434a"); // 더 길어진 깃
+    rect(g, cx - 2, hy - 16, 4, 2, "#c4434a");
+    rect(g, hx - 5, hy + 6, 2, 8, glow); // 뺨가리개가 내려온다
+    rect(g, hx + hw + 3, hy + 6, 2, 8, glow);
+  },
+
+  // 마법사 — 별이 늘고 모자가 길어진다.
+  vela(k) {
+    const { g, hx, hy, hw, cx, glow, i, stage } = k;
+    rect(g, hx - 4, hy + 2, hw + 8, 2, glow); // 챙 테두리
+    put(g, hx + hw + 2, hy - 4, glow);
+    if (stage < 3) return;
+    // 머리 위를 도는 별 셋
+    const ring = [[cx - 10, hy - 8], [cx, hy - 14], [cx + 10, hy - 8]];
+    ring.forEach(([px, py], n) => {
+      const on = (i + n) % 3;
+      rect(g, px - 1, py + on, 3, 1, glow);
+      rect(g, px, py - 1 + on, 1, 3, glow);
+    });
+    sparkle(g, [[hx - 6, hy + 8], [hx + hw + 4, hy + 10]], i, glow);
+  },
+
+  // 순찰자 — 후드에 잎이 돋고 어깨에 망토 자락이 생긴다.
+  fenn(k) {
+    const { g, hx, hy, hw, cx, glow, stage, i } = k;
+    pauldrons(k);
+    rect(g, hx + 2, hy - 3, 4, 2, glow); // 잎
+    rect(g, hx + hw - 6, hy - 3, 4, 2, glow);
+    if (stage < 3) return;
+    for (let n = 0; n < 5; n++) {
+      rect(g, hx - 6 + n * 2, hy - 6 - (n % 2) * 2, 2, 3, glow); // 잎사귀 관
+      rect(g, hx + hw + 4 - n * 2, hy - 6 - (n % 2) * 2, 2, 3, glow);
+    }
+    sparkle(g, [[cx - 12, hy + 12], [cx + 12, hy + 8]], i, glow);
+  },
+
+  // 도적 — 그림자가 는다. 빛나는 대신 분신이 생긴다.
+  nyx(k) {
+    const { g, hx, hy, hw, hh, tx, ty, tw, glow, i, stage } = k;
+    rect(g, hx + hw, hy + 2, 6, 3, "#3b3f52"); // 뒤로 더 날리는 천
+    rect(g, hx + hw + 4, hy + 5, 4, 2, "#252838");
+    if (stage < 3) return;
+    // 잔상 — 채워 그렸더니 덩어리가 되어 캐릭터를 가렸다. 윤곽만 남긴다.
+    const ghost = "#8f9bc0";
+    const off = 7 + (i % 2) * 2;
+    for (let y = 0; y < hh - 2; y += 2) put(g, hx - off, hy + 4 + y, ghost);
+    for (let x = 0; x < hw; x += 3) put(g, hx - off + x, hy + 3, ghost);
+    for (let y = 0; y < 8; y += 2) put(g, tx - off, ty + y, ghost);
+    sparkle(g, [[hx + hw + 6, hy + 10]], i, glow);
+  },
+
+  // 정비공 — 장비가 는다. 고글이 하나 더, 어깨에 공구.
+  pip(k) {
+    const { g, hx, hy, hw, tx, ty, tw, glow, i, stage } = k;
+    pauldrons(k);
+    rect(g, hx + hw - 2, hy - 5, 5, 4, glow); // 이마에 올린 두 번째 고글
+    if (stage < 3) return;
+    rect(g, tx + tw + 4, ty - 8, 3, 10, "#b9c2cf"); // 등에 멘 공구
+    rect(g, tx + tw + 2, ty - 11, 7, 3, "#dfe6f0");
+    sparkle(g, [[hx - 6, hy + 6], [tx - 8, ty + 4]], i, glow, "#ffe9a8");
+  },
+
+  // 토끼 — 귀가 길어진다. 이 캐릭터를 가르는 것이 귀이므로 거기가 자란다.
+  bunbun(k) {
+    const { g, hx, hy, hw, glow, i, stage } = k;
+    rect(g, hx + 1, hy - 6, 5, 6, "#f5ede2"); // 귀 밑동이 굵어진다
+    rect(g, hx + hw - 6, hy - 6, 5, 6, "#f5ede2");
+    rect(g, hx + 2, hy - 5, 3, 4, glow);
+    rect(g, hx + hw - 5, hy - 5, 3, 4, glow);
+    if (stage < 3) return;
+    // 귀는 위로 자라는데 격자 끝이 있다. 자라는 만큼 벌어지게 해서, 잘리는 대신
+    // 옆으로 퍼지게 한다 — 위가 막히면 옆이 답이다.
+    for (let n = 0; n < 5; n++) {
+      const t = n * 2;
+      const spread = Math.round(n * 0.8);
+      rect(g, hx + 1 - spread, hy - 11 - t, 5, 3, "#f5ede2");
+      rect(g, hx + hw - 6 + spread, hy - 11 - t, 5, 3, "#f5ede2");
+    }
+    sparkle(g, [[hx - 5, hy + 8], [hx + hw + 3, hy + 6]], i, glow);
+  },
+
+  // 곰 — 커진다. 귀가 두꺼워지고 몸에 무게가 붙는다.
+  choco(k) {
+    const { g, hx, hy, hw, hh, tx, ty, tw, glow, stage, i } = k;
+    rect(g, hx - 4, hy - 5, 8, 8, "#c68a5a"); // 귀가 커진다
+    rect(g, hx + hw - 4, hy - 5, 8, 8, "#c68a5a");
+    rect(g, hx - 2, hy - 3, 4, 4, "#5e3b24");
+    rect(g, hx + hw - 2, hy - 3, 4, 4, "#5e3b24");
+    if (stage < 3) return;
+    rect(g, tx - 5, ty, 4, 10, "#8a5a3a"); // 팔이 굵어진다
+    rect(g, tx + tw + 1, ty, 4, 10, "#8a5a3a");
+    rect(g, hx + 2, hy + hh - 1, hw - 4, 3, glow); // 목에 두른 것
+    sparkle(g, [[hx - 7, hy + 4]], i, glow);
+  },
+
+  // 구름 — 비를 내린다. 커지는 게 아니라 날씨가 된다.
+  nimbus(k) {
+    const { g, hx, hy, hw, glow, i, stage } = k;
+    // 덩어리를 둘 더 얹었더니 머리가 두 배가 됐다. 하나만, 작게.
+    rect(g, hx + hw - 5, hy - 7, 7, 5, "#ffffff");
+    if (stage < 3) return;
+    for (let n = 0; n < 6; n++) {
+      const px = hx - 4 + n * 5;
+      const py = hy + 12 + ((i + n) % 4) * 4;
+      rect(g, px, py, 1, 3, glow); // 빗줄기
+    }
+    // 번개 — 지그재그 한 줄. 사각형 둘은 번개가 아니라 블록이다.
+    if (i % 2 === 0) {
+      const bx = hx + 4;
+      rect(g, bx + 2, hy - 12, 2, 3, "#ffe066");
+      rect(g, bx, hy - 9, 2, 3, "#ffe066");
+      rect(g, bx + 2, hy - 6, 2, 3, "#ffe066");
+    }
+  },
+
+  // 복숭아 — 익는다. 잎이 늘고 꽃이 핀다.
+  momo(k) {
+    const { g, hx, hy, hw, cx, glow, i, stage } = k;
+    rect(g, cx + 2, hy - 8, 6, 3, "#7fc48d"); // 잎이 커진다
+    rect(g, cx - 8, hy - 7, 5, 3, "#7fc48d");
+    if (stage < 3) return;
+    const petals = [[cx - 10, hy - 10], [cx + 9, hy - 12], [cx - 2, hy - 15]];
+    petals.forEach(([px, py], n) => {
+      const on = (i + n) % 3 === 0;
+      rect(g, px, py, 3, 3, on ? "#ffd0e0" : glow); // 꽃
+      put(g, px + 1, py + 1, "#ffe066");
+    });
+    sparkle(g, [[hx - 6, hy + 10], [hx + hw + 4, hy + 8]], i, glow);
+  },
+
+  // 커피 — 진해진다. 김이 굵어지고 잔이 커진다.
+  mocha(k) {
+    const { g, hx, hy, hw, glow, i, stage } = k;
+    rect(g, hx - 2, hy - 9, hw + 4, 3, "#f6f1e8"); // 잔 테두리가 두꺼워진다
+    rect(g, hx - 5, hy - 6, 3, 5, "#f6f1e8"); // 손잡이가 커진다
+    if (stage < 3) return;
+    for (let k2 = 0; k2 < 4; k2++) {
+      const sx = hx + 2 + k2 * 5 + ((i + k2) % 3);
+      rect(g, sx, hy - 20 - k2, 2, 8, "#ffffff55"); // 김이 높이 오른다
+    }
+    rect(g, hx + 2, hy - 12, hw - 4, 2, glow); // 크레마
+    sparkle(g, [[hx - 6, hy + 6]], i, glow, "#fff3c4");
+  },
+};
 
 /** 한 프레임을 세밀한 격자로 완성한다. */
 function fineFrame(h, stage, row, i) {
