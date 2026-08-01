@@ -95,7 +95,7 @@ function makeEl(tag = "div") {
   return el;
 }
 
-function runRenderer() {
+function runRenderer(settings = {}) {
   const script = HTML.slice(HTML.indexOf("<script>") + 8, HTML.lastIndexOf("</script>"));
   const root = makeEl("body");
   // 펫은 `#list` 안에 붙는다.
@@ -131,7 +131,11 @@ function runRenderer() {
           onAgents = fn;
         },
         setInteractive() {},
-        setMood() {},
+        getSettings: () =>
+          Promise.resolve({ mood: "chatty", pet: "", hat: "wizard", weapon: "sword", ...settings }),
+        setSettings: () => Promise.resolve({}),
+        onSettings() {},
+        openSettings() {},
         quit() {},
         drag() {},
         open() {},
@@ -150,7 +154,7 @@ function runRenderer() {
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
   vm.runInContext(script, sandbox, { filename: "renderer/index.html" });
-  return { root, push: (agents, nudge) => onAgents(agents, nudge), doc };
+  return { root, push: (agents, nudge) => onAgents(agents, nudge), doc, sandbox };
 }
 
 const AGENT = {
@@ -203,7 +207,7 @@ test("내용이 그대로면 인벤토리를 다시 그리지 않는다", () => 
   assert.equal(inv.writes, drawn + 1, "바뀌면 다시 그려야 한다");
 });
 
-test("아이템을 고르면 그 자리에서 바뀐다", () => {
+test.skip("아이템을 고르면 그 자리에서 바뀐다 — 설정 창으로 옮김", () => {
   const app = runRenderer();
   app.push([AGENT]);
   const pet = app.root.children[0];
@@ -242,15 +246,25 @@ test("먼저 말을 걸면 말풍선이 뜬다", () => {
   assert.match(bubble.innerHTML, /고쳤습니다/, "에이전트가 쓴 말도 같이 보여준다");
 });
 
-test("조용히 모드면 말풍선이 안 뜬다", () => {
+test("설정 버튼은 설정 창을 연다", () => {
   const app = runRenderer();
   app.push([AGENT]);
   const pet = app.root.children[0];
-  // 패널의 스위치를 누른다.
-  // 보통 → 수다 → 조용히. 두 번 눌러야 조용해진다.
-  pet.querySelector(".hush").onclick({ stopPropagation() {} });
-  pet.querySelector(".hush").onclick({ stopPropagation() {} });
+  const hush = pet.querySelector(".hush");
+  assert.match(hush.textContent, /설정/, "패널에서 고르던 것은 설정 창으로 갔다");
+  let opened = false;
+  app.sandbox.window.pet.openSettings = () => (opened = true);
+  hush.onclick({ stopPropagation() {} });
+  assert.ok(opened, "누르면 설정 창이 열려야 한다");
+});
 
+test("조용히면 말풍선이 안 뜬다", async () => {
+  const app = runRenderer({ mood: "quiet" });
+  // 설정은 메인에서 비동기로 온다. 진짜 차단은 메인이 하고(말을 아예 안 만든다),
+  // 렌더러의 검사는 두 번째 방어선이다 — 그 방어선이 도착한 뒤를 본다.
+  await new Promise((r) => setImmediate(r));
+  app.push([AGENT]);
+  const pet = app.root.children[0];
   app.push([AGENT], { kind: "waiting", text: "부르는 중", showMs: 12000 });
   assert.equal(pet.querySelector(".nudge").classList.contains("on"), false);
 });

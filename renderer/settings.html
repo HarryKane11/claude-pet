@@ -1,0 +1,282 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>claude-pet</title>
+<style>
+  /* 펫 창과 같은 색을 쓴다. 설정이 다른 앱처럼 보이면 그때부터 남의 창이다. */
+  :root {
+    --bg: #12151c;
+    --card: #181b23;
+    --line: rgba(255, 255, 255, 0.09);
+    --fg: #e8edf5;
+    --dim: #96a0b5;
+    --accent: #e8b163;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font: 13px/1.6 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif; }
+  body { display: flex; }
+
+  nav { width: 150px; flex: none; border-right: 1px solid var(--line); padding: 16px 0;
+    display: flex; flex-direction: column; gap: 2px; }
+  nav button { background: none; border: 0; color: var(--dim); text-align: left;
+    padding: 8px 18px; font: inherit; cursor: pointer; border-left: 2px solid transparent; }
+  nav button:hover { color: var(--fg); }
+  nav button.on { color: var(--fg); border-left-color: var(--accent); background: rgba(255,255,255,0.03); }
+  nav .foot { margin-top: auto; padding: 12px 18px; color: rgba(255,255,255,0.25); font-size: 11px; }
+
+  main { flex: 1; overflow-y: auto; padding: 22px 26px; }
+  h2 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+  .sub { color: var(--dim); margin: 0 0 18px; }
+  section { display: none; }
+  section.on { display: block; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 12px; }
+  .row { display: flex; align-items: center; gap: 12px; }
+  .row + .row { margin-top: 12px; }
+  .grow { flex: 1; min-width: 0; }
+  .muted { color: var(--dim); font-size: 12px; }
+
+  /* 캐릭터 고르기 — 시트의 첫 칸만 보여 준다. */
+  .pets { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+  .pet { background: none; border: 1px solid var(--line); border-radius: 10px; cursor: pointer;
+    padding: 8px 4px 6px; color: var(--dim); font: inherit; font-size: 11px; text-align: center; }
+  .pet:hover { border-color: rgba(255,255,255,0.22); color: var(--fg); }
+  .pet.on { border-color: var(--accent); color: var(--fg); background: rgba(232,177,99,0.07); }
+  .pet i { display: block; width: 72px; height: 78px; margin: 0 auto 4px;
+    background-repeat: no-repeat; image-rendering: pixelated; }
+
+  /* 말수 */
+  .moods { display: flex; gap: 8px; }
+  .mood { flex: 1; background: none; border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px; color: var(--dim); font: inherit; cursor: pointer; text-align: left; }
+  .mood.on { border-color: var(--accent); color: var(--fg); background: rgba(232,177,99,0.07); }
+  .mood b { display: block; font-size: 13px; margin-bottom: 2px; }
+  .mood span { font-size: 11px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  td { padding: 4px 0; vertical-align: top; }
+  td:first-child { color: var(--dim); width: 92px; }
+
+  /* 기억 */
+  .mem { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px;
+    background: var(--card); }
+  .mem h3 { margin: 0 0 2px; font-size: 13px; font-weight: 600; }
+  .mem .body { color: var(--dim); font-size: 12px; margin: 6px 0 10px; white-space: pre-wrap; }
+  .tag { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--dim); margin-left: 6px; vertical-align: 1px; }
+  .btns { display: flex; gap: 6px; }
+  button.act { border: 1px solid var(--line); background: none; color: var(--fg);
+    border-radius: 7px; padding: 5px 12px; font: inherit; font-size: 12px; cursor: pointer; }
+  button.act:hover { border-color: rgba(255,255,255,0.28); }
+  button.act.yes { border-color: rgba(120,200,140,0.4); color: #9fe0b4; }
+  button.act.no { color: var(--dim); }
+  .empty { color: var(--dim); padding: 26px 0; text-align: center; }
+  .note { color: var(--dim); font-size: 11.5px; margin-top: 10px; }
+  code { background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+</style>
+
+<nav>
+  <button data-tab="pet" class="on">캐릭터</button>
+  <button data-tab="talk">말수</button>
+  <button data-tab="mem">기억</button>
+  <button data-tab="about">상태</button>
+  <div class="foot">claude-pet</div>
+</nav>
+
+<main>
+  <section id="pet" class="on">
+    <h2>캐릭터</h2>
+    <p class="sub">레벨이 오르면 진화한다. 깔린 스프라이트 팩도 여기 같이 나온다.</p>
+    <div class="pets" id="pets"></div>
+    <p class="note" id="petnote"></p>
+  </section>
+
+  <section id="talk">
+    <h2>말수</h2>
+    <p class="sub">펫은 관측한 것에서만 말한다. 얼마나 자주 말할지만 고르면 된다.</p>
+    <div class="moods" id="moods"></div>
+    <div class="card" style="margin-top:12px">
+      <table id="triggers"></table>
+    </div>
+  </section>
+
+  <section id="mem">
+    <h2>기억</h2>
+    <p class="sub">
+      승인하면 에이전트가 다음 세션에 읽는 자리로 간다. 아무도 안 읽는 기억은 기억이 아니다.
+    </p>
+    <div id="mems"></div>
+  </section>
+
+  <section id="about">
+    <h2>상태</h2>
+    <p class="sub">지금 무엇을 보고 있는지.</p>
+    <div class="card"><table id="stat"></table></div>
+    <p class="note">
+      설정은 <code>~/.kibitz-pet/settings.json</code> 에 있다. 직접 열어 고쳐도 된다.
+    </p>
+  </section>
+</main>
+
+<script>
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  let cfg = {};
+  let agents = [];
+  let pets = [];
+
+  /* ── 탭 ── */
+  for (const b of document.querySelectorAll("nav button")) {
+    b.onclick = () => {
+      for (const x of document.querySelectorAll("nav button")) x.classList.toggle("on", x === b);
+      for (const s of document.querySelectorAll("section")) s.classList.toggle("on", s.id === b.dataset.tab);
+      if (b.dataset.tab === "mem") drawMemories();
+      if (b.dataset.tab === "about") drawStatus();
+    };
+  }
+
+  /* ── 캐릭터 ──
+     격자는 시트마다 다르다(9행짜리도 11행짜리도 있다). 썸네일 한 칸을 보여 주려면
+     그 시트의 격자를 알아야 해서, 그림을 열어 직접 잰다. */
+  const CELL_W = 192, CELL_H = 208;
+
+  function measure(url) {
+    return new Promise((done) => {
+      const img = new Image();
+      img.onload = () => done({
+        cols: Math.max(1, Math.round(img.width / CELL_W)),
+        rows: Math.max(1, Math.round(img.height / CELL_H)),
+      });
+      img.onerror = () => done(null);
+      img.src = url;
+    });
+  }
+
+  const urlOf = (p, sheet) => (p.builtin ? sheet : `file://${encodeURI(sheet)}`);
+
+  async function drawPets() {
+    const box = $("#pets");
+    box.innerHTML = "";
+    for (const p of pets) {
+      const grid = await measure(urlOf(p, p.sheet));
+      if (!grid) continue;
+      const b = document.createElement("button");
+      b.className = "pet" + (cfg.pet === p.id ? " on" : "");
+      b.innerHTML = `<i style="background-image:url('${urlOf(p, p.sheet)}');
+        background-size:${grid.cols * 100}% ${grid.rows * 100}%"></i>${esc(p.name)}`;
+      b.onclick = async () => {
+        cfg = await window.pet.setSettings({ pet: p.id });
+        drawPets();
+      };
+      box.appendChild(b);
+    }
+    const cur = pets.find((p) => p.id === cfg.pet);
+    const stages = cur && cur.stages ? cur.stages.length : 0;
+    $("#petnote").textContent = stages
+      ? `${cur.name} 은 ${stages}단계까지 진화한다 — ${cur.stages.map((s) => "Lv." + s.from).join(" · ")}`
+      : "";
+  }
+
+  /* ── 말수 ── */
+  const MOODS = [
+    ["chatty", "수다", "7분에 한 번쯤. 도구를 쓰거나 분신이 나가면 그것도 말한다"],
+    ["normal", "보통", "중요한 것만. 답이 끝났을 때, 레벨이 올랐을 때, 오래 붙어 있을 때"],
+    ["quiet", "조용히", "아무 말도 안 한다. 화면 공유 중이거나 집중할 때"],
+  ];
+  const TRIGGERS = [
+    ["답변 대기", "답을 다 쓰고 5분째 안 왔을 때. 에이전트가 쓴 첫 문장을 같이 보여준다", "전부"],
+    ["레벨업", "레벨이 올랐을 때", "전부"],
+    ["오래 붙어 있음", "두 시간 넘게 일했을 때 — 쉬라는 말이 근거를 갖는 유일한 자리", "전부"],
+    ["새 장비", "처음 보는 스킬이나 플러그인이 들어왔을 때", "전부"],
+    ["분신", "하위 에이전트가 나가 있을 때", "수다"],
+    ["긴 요청", "한 요청이 8분을 넘길 때", "수다"],
+    ["도구", "지금 무슨 도구를 쓰는지", "수다"],
+    ["심심함", "12분 넘게 아무도 안 부를 때", "수다"],
+    ["첫 인사", "오늘 처음 봤을 때", "수다"],
+  ];
+
+  function drawMoods() {
+    $("#moods").innerHTML = MOODS.map(([id, name, desc]) =>
+      `<button class="mood${cfg.mood === id ? " on" : ""}" data-m="${id}">
+         <b>${name}</b><span>${esc(desc)}</span></button>`).join("");
+    for (const b of document.querySelectorAll(".mood")) {
+      b.onclick = async () => { cfg = await window.pet.setSettings({ mood: b.dataset.m }); drawMoods(); };
+    }
+    $("#triggers").innerHTML = TRIGGERS.map(([n, d, when]) =>
+      `<tr><td>${esc(n)}</td><td>${esc(d)}<span class="tag">${when}</span></td></tr>`).join("");
+  }
+
+  /* ── 기억 ──
+     승인 버튼 하나가 사람의 파일을 고친다. 그래서 어디로 가는지 먼저 보여 준다. */
+  async function drawMemories() {
+    const list = await window.pet.memoryList();
+    const box = $("#mems");
+    const dir = (agents[0] || {}).memoryDir;
+    if (!list.length) {
+      box.innerHTML = `<div class="empty">기억 후보가 없다.<br>
+        <span class="muted">큐레이터가 하루 한두 번 돌면서 남길 만한 것을 골라 둔다.</span></div>`;
+      return;
+    }
+    box.innerHTML = list.map((m) => `
+      <div class="mem" data-n="${esc(m.name)}">
+        <h3>${esc(m.description || m.name)}<span class="tag">${esc(m.metadata.type || "project")}</span></h3>
+        <div class="muted">${esc(m.name)}</div>
+        <div class="body">${esc(m.body)}</div>
+        <div class="btns">
+          <button class="act yes">승인</button>
+          <button class="act no">아니야</button>
+        </div>
+      </div>`).join("") +
+      (dir ? `<p class="note">승인하면 <code>${esc(dir)}</code> 로 간다.</p>`
+           : `<p class="note">지금 돌고 있는 대화방이 없어서 어디에 넣을지 모른다. 세션을 하나 열고 다시 오면 된다.</p>`);
+
+    for (const el of document.querySelectorAll(".mem")) {
+      const name = el.dataset.n;
+      el.querySelector(".yes").onclick = async () => {
+        if (!dir) return;
+        const r = await window.pet.memoryApprove(name, dir);
+        if (r.ok) drawMemories();
+      };
+      el.querySelector(".no").onclick = async () => {
+        await window.pet.memoryReject(name, "설정 창에서 거부");
+        drawMemories();
+      };
+    }
+  }
+
+  /* ── 상태 ── */
+  async function drawStatus() {
+    const c = await window.pet.curatorState();
+    const a = agents[0];
+    const when = (t) => (t ? new Date(t).toLocaleString() : "아직 없음");
+    $("#stat").innerHTML = [
+      ["보고 있는 대화방", agents.length ? `${agents.length}개` : "없음"],
+      ["지금 상태", a ? `${a.state}${a.tool ? " · " + a.tool : ""}` : "—"],
+      ["레벨", a ? `Lv.${a.level}` : "—"],
+      ["스킬 · 플러그인", a ? `${(a.skills || []).length} · ${(a.plugins || []).length}` : "—"],
+      ["큐레이터 마지막 실행", when(c.lastRun)],
+      ["큐레이터 누적", `${c.runs || 0}회 · $${(c.cost || 0).toFixed(3)}`],
+    ].map(([k, v]) => `<tr><td>${k}</td><td>${esc(v)}</td></tr>`).join("");
+  }
+
+  /* ── 시작 ── */
+  (async () => {
+    cfg = await window.pet.getSettings();
+    const builtin = await fetch("pets/index.json").then((r) => r.json()).catch(() => []);
+    const installed = window.pet.pets ? await window.pet.pets() : [];
+    pets = [...builtin.map((p) => ({ ...p, builtin: true })), ...installed];
+    drawPets();
+    drawMoods();
+  })();
+
+  window.pet.onAgents((list) => {
+    agents = list || [];
+  });
+  window.pet.onSettings((s) => {
+    cfg = s;
+    drawPets();
+    drawMoods();
+  });
+</script>

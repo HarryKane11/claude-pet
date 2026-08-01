@@ -331,9 +331,9 @@
     { id: "royal",  file: "hat-royal",  label: "황금 모자" },
     { id: "crown",  file: "hat-crown",  label: "왕관" },
   ];
-  const pick = (list, key) => list.find((x) => x.id === localStorage.getItem(key)) || list[0];
-  const weaponOf = () => pick(WEAPONS, "kb-weapon");
-  const hatOf = () => pick(HATS, "kb-hat");
+  const pick = (list, id) => list.find((x) => x.id === id) || list[0];
+  const weaponOf = () => pick(WEAPONS, cfg.weapon);
+  const hatOf = () => pick(HATS, cfg.hat);
   const hidden = new Set(JSON.parse(localStorage.getItem("kb-hidden") || "[]"));
 
   const plain = (t) => String(t || "")
@@ -414,7 +414,6 @@
         </div>
         <div class="inv"></div>
         <div class="detail"></div>
-        <div class="weapons"></div>
         <button class="hush"></button>
         <button class="open"></button>
       </div>
@@ -543,7 +542,7 @@
     return { key: picked.sheet, url: url_(picked.sheet, pack.builtin), from: picked.from, stage: n };
   }
   const chosenPet = () => {
-    const want = localStorage.getItem("kb-pet");
+    const want = cfg.pet;
     if (want === "none") return null;
     return (
       pets.find((p) => p.id === want) ||
@@ -763,64 +762,14 @@
           .map((it) => `<button class="wbtn${it.id === cur.id ? " on" : ""}" data-k="${key}"
             data-v="${it.id}" title="${it.label}"><img src="assets/${it.file}.svg" alt=""></button>`)
           .join("");
-      // 고를 수 있는 목록은 상수다. 고른 값이 바뀔 때만 다시 그린다.
-      const picker = q(".weapons");
-      const pickSig = `${ht.id}/${wp.id}/${pack ? pack.id : "-"}/${pets.length}`;
-      if (picker.dataset.sig !== pickSig) {
-        picker.dataset.sig = pickSig;
-        // 스프라이트 팩이 있으면 모자·무기는 팩 그림 안에 이미 있다. 고를 것은
-        // 어느 캐릭터로 볼지 하나뿐이다.
-        const petRow = pets.length
-          ? `<div class="prow">${pets
-              .map((pp) => {
-                // 썸네일도 한 칸만 보여야 한다. 격자를 안 걸면 시트 전체가
-                // 버튼 안에 우겨넣어진 채로 나온다.
-                const gg = grids.get(pp.sheet);
-                const size = gg ? `background-size:${gg.cols * 100}% ${gg.rows * 100}%;` : "";
-                return `<button class="wbtn pbtn${pack && pp.id === pack.id ? " on" : ""}"
-                  data-k="kb-pet" data-v="${pp.id}" title="${esc(pp.name)}"
-                  style="${size}background-image:url('${petUrl(pp)}')"></button>`;
-              })
-              .join("")}</div>`
-          : "";
-        picker.innerHTML = pack
-          ? petRow
-          : `${petRow}<div class="prow">${row(HATS, ht, "kb-hat")}</div>
-          <div class="prow">${row(WEAPONS, wp, "kb-weapon")}</div>`;
-        for (const b of picker.querySelectorAll(".wbtn")) {
-          b.onclick = (ev) => {
-            ev.stopPropagation();
-            localStorage.setItem(b.dataset.k, b.dataset.v);
-            redraw();
-          };
-        }
-      }
-
-      // 캐릭터 클릭 = 패널 고정. 아이템을 고르는 동안 패널이 닫히면 고를 수가 없다.
-      n.onclick = (ev) => {
-        if (wasDrag() || ev.target.closest(".panel")) return;
-        n.classList.toggle("pinned");
-        pinned.has(id) ? pinned.delete(id) : pinned.add(id);
-        unseen.set(id, 0);
-        badge.style.display = "none";
-      };
-      if (pinned.has(id)) n.classList.add("pinned");
-      n.title = "클릭: 패널 고정 · 끌어서 이동";
-
-      // 조용히 모드 스위치. 패널 안에 둔다 — 늘 보이면 그것대로 시끄럽다.
+      // 고르는 일은 설정 창에서 한다. 12초 뒤 사라지는 말풍선 안에서 목록을
+      // 훑고 판단하는 것은 애초에 되는 일이 아니었다.
       const hush = q(".hush");
-      const LABEL = { normal: "🔔 보통", chatty: "💬 수다", quiet: "🔇 조용히" };
-      const setHush = () => {
-        hush.textContent = LABEL[mood()];
-        hush.classList.toggle("on", quiet());
-      };
-      setHush();
+      hush.textContent = "⚙ 설정";
+      hush.classList.toggle("on", quiet());
       hush.onclick = (ev) => {
         ev.stopPropagation();
-        const at = MOODS.indexOf(mood());
-        localStorage.setItem("kb-mood", MOODS[(at + 1) % MOODS.length]);
-        window.pet.setMood(mood());
-        setHush();
+        window.pet.openSettings();
       };
 
       const open = q(".open");
@@ -844,13 +793,20 @@
   /* 조용히 모드. 켜면 먼저 말을 걸지 않는다 — 화면 공유 중이거나 집중할 때.
      상태를 메인에 알려 두는 것은, 조용한 동안 "세션당 한 번" 예산을 쓰지 않기
      위해서다. 여기서 숨기기만 하면 조용히 모드를 끈 순간 할 말이 이미 없다. */
-  const MOODS = ["normal", "chatty", "quiet"];
-  const mood = () => {
-    const m = localStorage.getItem("kb-mood");
-    return MOODS.includes(m) ? m : "normal";
-  };
-  const quiet = () => mood() === "quiet";
-  window.pet.setMood(mood());
+  /* 설정은 메인이 들고 있다. 창이 둘이 되면서 localStorage 로는 두 창이 서로
+     다른 값을 보게 됐다 — 진실은 한 군데여야 한다. */
+  let cfg = { mood: "chatty", pet: "", hat: "wizard", weapon: "sword" };
+  const quiet = () => cfg.mood === "quiet";
+  if (window.pet.getSettings) {
+    window.pet.getSettings().then((s) => {
+      cfg = { ...cfg, ...s };
+      redraw();
+    });
+    window.pet.onSettings((s) => {
+      cfg = { ...cfg, ...s };
+      redraw();
+    });
+  }
 
   let nudgeTimer = null;
 

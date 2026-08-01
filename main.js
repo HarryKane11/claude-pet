@@ -18,6 +18,9 @@ const { spawn } = require("node:child_process");
 const { liveAgents } = require("./src/reader");
 const { listPets } = require("./src/pets");
 const { nextNudge } = require("./src/nudges");
+const settings = require("./src/settings");
+const memory = require("./src/memory");
+const curator = require("./src/curator");
 
 const POLL_MS = 2000;
 const W = 500;
@@ -74,7 +77,7 @@ function createWindow() {
     const agents = liveAgents();
     // 말은 상태가 안 바뀌어도 나올 수 있다 — 기다린 시간이 흐른 것 자체가 사건이다.
     // 그래서 중복 차단보다 먼저 본다.
-    const nudge = nextNudge(agents, { mood });
+    const nudge = nextNudge(agents, { mood: settings.load().mood });
     const sig = JSON.stringify(agents);
     if (sig === lastSig && !nudge) return;
     lastSig = sig;
@@ -113,9 +116,61 @@ ipcMain.handle("pets", () => listPets());
  * 말수. 스위치 하나로는 안 된다 — 어떤 사람에게는 시간당 세 번도 많고,
  * 어떤 사람에게는 반려동물이 하루 두 마디만 하면 죽은 것 같다.
  */
-let mood = "normal";
-ipcMain.on("mood", (_e, m) => {
-  mood = ["quiet", "normal", "chatty"].includes(m) ? m : "normal";
+ipcMain.handle("settings:get", () => settings.load());
+ipcMain.handle("settings:set", (_e, patch) => {
+  const next = settings.save(patch || {});
+  // 두 창이 같은 값을 봐야 한다. 설정 창에서 캐릭터를 바꾸면 펫도 즉시 바뀐다.
+  for (const w of BrowserWindow.getAllWindows()) w.webContents.send("settings", next);
+  return next;
+});
+
+/* 기억 — 승인 없이 쌓인 기억은 자기 기억이 아니라 남의 기억이다. */
+ipcMain.handle("memory:list", () => memory.pending());
+ipcMain.handle("memory:approve", (_e, name, dir) => {
+  try {
+    return { ok: true, ...memory.approve(name, dir) };
+  } catch (e) {
+    return { ok: false, reason: String(e && e.message) };
+  }
+});
+ipcMain.handle("memory:reject", (_e, name, reason) => {
+  memory.reject(name, reason);
+  return { ok: true };
+});
+ipcMain.handle("curator:state", () => {
+  try {
+    return JSON.parse(require("fs").readFileSync(curator.STATE, "utf8"));
+  } catch {
+    return { lastRun: 0, runs: 0, cost: 0 };
+  }
+});
+
+/**
+ * 설정 창.
+ *
+ * 말풍선 패널에 다 우겨넣고 있었다. 캐릭터 고르기까지는 어떻게 됐는데 기억
+ * 승인은 갈 자리가 없었다 — 목록을 보고 하나씩 판단하는 일은 12초 뒤 사라지는
+ * 말풍선에서 할 수 있는 일이 아니다.
+ */
+let panel = null;
+ipcMain.on("settings:open", () => {
+  if (panel && !panel.isDestroyed()) {
+    panel.show();
+    panel.focus();
+    return;
+  }
+  panel = new BrowserWindow({
+    width: 660,
+    height: 560,
+    minWidth: 520,
+    minHeight: 420,
+    title: "claude-pet",
+    backgroundColor: "#12151c",
+    webPreferences: { preload: path.join(__dirname, "preload.js") },
+  });
+  panel.setMenuBarVisibility(false);
+  panel.loadFile(path.join(__dirname, "renderer", "settings.html"));
+  panel.on("closed", () => (panel = null));
 });
 
 ipcMain.on("quit", () => app.quit());

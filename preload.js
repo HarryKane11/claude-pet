@@ -14,5 +14,12 @@ contextBridge.exposeInMainWorld("pet", {
   setInteractive: (on) => ipcRenderer.send("interactive", on),
   // 깔려 있는 스프라이트 팩. 파일 경로만 넘긴다 — 읽는 것은 <img> 가 한다.
   pets: () => ipcRenderer.invoke("pets"),
-  setMood: (m) => ipcRenderer.send("mood", m),
+  getSettings: () => ipcRenderer.invoke("settings:get"),
+  setSettings: (patch) => ipcRenderer.invoke("settings:set", patch),
+  onSettings: (fn) => ipcRenderer.on("settings", (_e, s) => fn(s)),
+  openSettings: () => ipcRenderer.send("settings:open"),
+  memoryList: () => ipcRenderer.invoke("memory:list"),
+  memoryApprove: (name, dir) => ipcRenderer.invoke("memory:approve", name, dir),
+  memoryReject: (name, reason) => ipcRenderer.invoke("memory:reject", name, reason),
+  curatorState: () => ipcRenderer.invoke("curator:state"),
 });

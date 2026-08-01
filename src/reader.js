@@ -420,6 +420,9 @@ function readClaudeCode(found) {
 
   return {
     source: "claude-code",
+    // 이 대화방의 기억이 어디로 가야 하는지. 하네스는 프로젝트 폴더 옆의
+    // `memory/` 를 읽으므로, 승인된 기억도 거기로 가야 다음 세션이 읽는다.
+    memoryDir: path.join(path.dirname(found.path), "memory"),
     sessionId: st.sessionId,
     lastSay: st.lastSay,
     title: st.title,
