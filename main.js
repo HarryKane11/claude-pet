@@ -47,6 +47,18 @@ function createWindow() {
   });
 
   win.setAlwaysOnTop(true, "screen-saver");
+
+  /**
+   * 창은 기본적으로 **클릭을 통과시킨다.**
+   *
+   * 투명한 창이라도 OS 는 창 영역 전체를 이 앱의 것으로 본다. 그래서 펫 옆의
+   * 빈 공간이 그 아래 있는 것들(에디터·브라우저)의 클릭을 통째로 먹는다.
+   * 화면 구석에 항상 떠 있는 물건이 그 구석을 못 쓰게 만들면 그건 방해다.
+   *
+   * `forward: true` 라서 통과 상태에서도 마우스 이동은 렌더러에 전달된다.
+   * 렌더러가 커서 아래에 실제 요소가 있는지 보고 그때만 클릭을 받는다.
+   */
+  win.setIgnoreMouseEvents(true, { forward: true });
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
 
@@ -66,6 +78,12 @@ function createWindow() {
 }
 
 ipcMain.on("quit", () => app.quit());
+
+/** 커서가 캐릭터·패널 위에 있는 동안만 클릭을 받는다. */
+ipcMain.on("interactive", (_e, on) => {
+  if (!win || win.isDestroyed()) return;
+  win.setIgnoreMouseEvents(!on, { forward: true });
+});
 
 /**
  * 사용자가 끌어 옮긴다.

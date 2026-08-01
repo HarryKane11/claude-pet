@@ -311,6 +311,31 @@
   const nodes = new Map();
   const pinned = new Set();
 
+  /**
+   * 커서 아래에 우리 요소가 있을 때만 클릭을 받는다.
+   *
+   * 창이 기본적으로 클릭 통과 상태라(main.js 참고), 여기서 켜 주지 않으면
+   * 캐릭터도 안 눌린다. 반대로 늘 켜 두면 투명한 빈 공간이 아래 창의 클릭을
+   * 먹는다. 그래서 매 이동마다 실제로 무엇이 커서 아래 있는지 본다.
+   */
+  let interactive = false;
+  function updateInteractive(x, y) {
+    const el = document.elementFromPoint(x, y);
+    const hit = Boolean(el && el.closest(".pet, #quit"));
+    if (hit !== interactive) {
+      interactive = hit;
+      window.pet.setInteractive(hit);
+    }
+  }
+  document.addEventListener("mousemove", (e) => updateInteractive(e.clientX, e.clientY));
+  // 창 밖으로 나가면 확실히 통과 상태로 돌린다.
+  document.addEventListener("mouseleave", () => {
+    if (interactive) {
+      interactive = false;
+      window.pet.setInteractive(false);
+    }
+  });
+
   /* 끌어서 옮기기. 4px 이상 움직였으면 클릭이 아니라 이동이다. */
   let drag = null;
   document.addEventListener("mousedown", (e) => {

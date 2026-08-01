@@ -11,4 +11,5 @@ contextBridge.exposeInMainWorld("pet", {
   quit: () => ipcRenderer.send("quit"),
   openSession: (id, dashboard) => ipcRenderer.send("open-session", id, dashboard === true),
   drag: (dx, dy) => ipcRenderer.send("drag", dx, dy),
+  setInteractive: (on) => ipcRenderer.send("interactive", on),
 });
