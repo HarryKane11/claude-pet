@@ -210,6 +210,32 @@
   .m-sleep   { animation: sleep 3.6s ease-in-out infinite; }
   .m-fidget  { animation: fidget 6s ease-in-out infinite; }
 
+  /* 먼저 거는 말.
+     마우스를 올리지 않아도 뜨고, 스스로 사라진다. 닫기 버튼은 두지 않는다 —
+     못 보고 지나가도 아무 일이 없어야 부담이 안 된다. */
+  .nudge { position: absolute; right: 100%; bottom: 46px; margin-right: 8px;
+    /* 절대 배치라 그냥 두면 캐릭터 상자(96px) 안에서 접힌다. 내용만큼 넓히고
+       거기서 상한을 건다. */
+    width: max-content; max-width: 230px; padding: 7px 10px; border-radius: 10px;
+    background: rgba(24,27,35,0.97); border: 1px solid rgba(255,255,255,0.10);
+    color: #e8edf5; font-size: 11.5px; line-height: 1.5; white-space: normal;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35); pointer-events: auto; cursor: pointer;
+    opacity: 0; transform: translateY(4px); transition: opacity 200ms ease-out, transform 200ms ease-out; }
+  .nudge.on { opacity: 1; transform: translateY(0); }
+  /* 캐릭터를 가리키는 꼭지. */
+  .nudge::after { content: ""; position: absolute; right: -5px; bottom: 10px;
+    width: 8px; height: 8px; background: rgba(24,27,35,0.97);
+    border-right: 1px solid rgba(255,255,255,0.10);
+    border-bottom: 1px solid rgba(255,255,255,0.10); transform: rotate(-45deg); }
+  .hush { background: none; border: 1px solid rgba(255,255,255,0.10); border-radius: 6px;
+    color: rgba(255,255,255,0.5); font-size: 10.5px; padding: 3px 7px; cursor: pointer;
+    align-self: flex-start; margin-top: 2px; }
+  .hush:hover { color: rgba(255,255,255,0.85); }
+  .hush.on { color: #e8b163; border-color: rgba(232,177,99,0.35); }
+
+  .nudge .quote { display: block; margin-top: 4px; color: #9aa6bb; font-size: 10.5px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
   /* 잠들면 Z 가 뜬다 — 상태를 그림으로도, 글자로도 말한다. */
   .zzz { position: absolute; right: -4px; top: -2px; font-size: 11px; color: #8f9bb3;
     opacity: 0; animation: zfloat 3.6s ease-in-out infinite; }
@@ -389,6 +415,7 @@
         <div class="inv"></div>
         <div class="detail"></div>
         <div class="weapons"></div>
+        <button class="hush"></button>
         <button class="open"></button>
       </div>
       <div class="char">
@@ -398,6 +425,7 @@
         <img class="weapon" alt="" />
         <span class="sp fx"></span>
         <span class="badge"></span>
+        <div class="nudge"></div>
         <span class="zzz">z</span>
         <span class="close" title="이 펫 숨기기">×</span>
       </div>`;
@@ -742,6 +770,21 @@
       if (pinned.has(id)) n.classList.add("pinned");
       n.title = "클릭: 패널 고정 · 끌어서 이동";
 
+      // 조용히 모드 스위치. 패널 안에 둔다 — 늘 보이면 그것대로 시끄럽다.
+      const hush = q(".hush");
+      const setHush = () => {
+        const on = quiet();
+        hush.textContent = on ? "🔇 조용히" : "🔔 말 걸기";
+        hush.classList.toggle("on", on);
+      };
+      setHush();
+      hush.onclick = (ev) => {
+        ev.stopPropagation();
+        localStorage.setItem("kb-quiet", quiet() ? "0" : "1");
+        window.pet.setQuiet(quiet());
+        setHush();
+      };
+
       const open = q(".open");
       open.textContent = "이 대화방 열기";
       open.onclick = (ev) => {
@@ -760,8 +803,34 @@
     }
   }
 
-  window.pet.onAgents((agents) => {
+  /* 조용히 모드. 켜면 먼저 말을 걸지 않는다 — 화면 공유 중이거나 집중할 때.
+     상태를 메인에 알려 두는 것은, 조용한 동안 "세션당 한 번" 예산을 쓰지 않기
+     위해서다. 여기서 숨기기만 하면 조용히 모드를 끈 순간 할 말이 이미 없다. */
+  const quiet = () => localStorage.getItem("kb-quiet") === "1";
+  window.pet.setQuiet(quiet());
+
+  let nudgeTimer = null;
+
+  function speak(a) {
+    if (!a) return;
+    const node = nodes.get(a.session || a.id);
+    const target = node || nodes.values().next().value;
+    if (!target) return;
+    const el = target.querySelector(".nudge");
+    el.innerHTML = `${esc(a.text)}${a.quote ? `<span class="quote">${esc(a.quote)}</span>` : ""}`;
+    el.classList.add("on");
+    el.onclick = (ev) => {
+      ev.stopPropagation();
+      if (a.session) window.pet.openSession(a.session, false);
+      el.classList.remove("on");
+    };
+    clearTimeout(nudgeTimer);
+    nudgeTimer = setTimeout(() => el.classList.remove("on"), a.showMs || 12000);
+  }
+
+  window.pet.onAgents((agents, nudge) => {
     lastAgents = agents || [];
     render(lastAgents);
+    if (nudge && !quiet()) speak(nudge);
   });
 </script>

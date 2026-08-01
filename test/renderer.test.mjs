@@ -20,7 +20,8 @@ const HTML = fs.readFileSync(path.join(here, "..", "renderer", "index.html"), "u
 
 /** 갱신 경로가 건드리는 것만 있는 최소 노드. */
 function makeEl(tag = "div") {
-  const el = {
+  let el;
+  el = {
     tagName: tag.toUpperCase(),
     children: [],
     dataset: {},
@@ -39,7 +40,14 @@ function makeEl(tag = "div") {
       this._html = v;
       this.writes += 1;
     },
-    classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+    // 진짜로 담아 둔다. 흉내만 내면 "말풍선이 떴는가" 를 확인할 수 없다.
+    _cls: new Set(),
+    classList: {
+      add(c) { el._cls.add(c); },
+      remove(c) { el._cls.delete(c); },
+      toggle(c, on) { if (on === undefined) el._cls.has(c) ? el._cls.delete(c) : el._cls.add(c); else if (on) el._cls.add(c); else el._cls.delete(c); },
+      contains: (c) => el._cls.has(c),
+    },
     appendChild(c) {
       this.children.push(c);
       return c;
@@ -123,6 +131,7 @@ function runRenderer() {
           onAgents = fn;
         },
         setInteractive() {},
+        setQuiet() {},
         quit() {},
         drag() {},
         open() {},
@@ -135,12 +144,13 @@ function runRenderer() {
     setInterval: () => 0,
     setTimeout: () => 0,
     clearInterval() {},
+    clearTimeout() {},
     console,
   };
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
   vm.runInContext(script, sandbox, { filename: "renderer/index.html" });
-  return { root, push: (agents) => onAgents(agents), doc };
+  return { root, push: (agents, nudge) => onAgents(agents, nudge), doc };
 }
 
 const AGENT = {
@@ -211,4 +221,34 @@ test("아이템을 고르면 그 자리에서 바뀐다", () => {
     if (weapon.src !== before) { changed = true; break; }
   }
   assert.ok(changed, "클릭 즉시 다시 그려야 한다");
+});
+
+test("먼저 말을 걸면 말풍선이 뜬다", () => {
+  const app = runRenderer();
+  app.push([AGENT]);
+  const pet = app.root.children[0];
+  const bubble = pet.querySelector(".nudge");
+  assert.equal(bubble.classList.contains("on"), false, "평소에는 떠 있지 않다");
+
+  app.push([AGENT], {
+    kind: "waiting",
+    text: "다 썼어. 보러 올래?",
+    quote: "고쳤습니다.",
+    session: "t1",
+    showMs: 12000,
+  });
+  assert.ok(bubble.classList.contains("on"), "말풍선이 떠야 한다");
+  assert.match(bubble.innerHTML, /보러 올래/);
+  assert.match(bubble.innerHTML, /고쳤습니다/, "에이전트가 쓴 말도 같이 보여준다");
+});
+
+test("조용히 모드면 말풍선이 안 뜬다", () => {
+  const app = runRenderer();
+  app.push([AGENT]);
+  const pet = app.root.children[0];
+  // 패널의 스위치를 누른다.
+  pet.querySelector(".hush").onclick({ stopPropagation() {} });
+
+  app.push([AGENT], { kind: "waiting", text: "부르는 중", showMs: 12000 });
+  assert.equal(pet.querySelector(".nudge").classList.contains("on"), false);
 });

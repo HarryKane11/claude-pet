@@ -17,6 +17,7 @@ const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { liveAgents } = require("./src/reader");
 const { listPets } = require("./src/pets");
+const { nextNudge } = require("./src/nudges");
 
 const POLL_MS = 2000;
 const W = 500;
@@ -71,10 +72,13 @@ function createWindow() {
   const push = () => {
     if (!win || win.isDestroyed()) return;
     const agents = liveAgents();
+    // 말은 상태가 안 바뀌어도 나올 수 있다 — 기다린 시간이 흐른 것 자체가 사건이다.
+    // 그래서 중복 차단보다 먼저 본다.
+    const nudge = nextNudge(agents, { quiet });
     const sig = JSON.stringify(agents);
-    if (sig === lastSig) return;
+    if (sig === lastSig && !nudge) return;
     lastSig = sig;
-    win.webContents.send("agents", agents);
+    win.webContents.send("agents", agents, nudge);
   };
   push();
   timer = setInterval(push, POLL_MS);
@@ -104,6 +108,12 @@ function createWindow() {
 }
 
 ipcMain.handle("pets", () => listPets());
+
+/** 조용히 모드. 화면 공유 중이거나 집중할 때 — 켜 두면 아무 말도 안 한다. */
+let quiet = false;
+ipcMain.on("quiet", (_e, on) => {
+  quiet = on === true;
+});
 
 ipcMain.on("quit", () => app.quit());
 
