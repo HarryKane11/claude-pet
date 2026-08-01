@@ -2,6 +2,10 @@
 
 A desktop pet that shows what your coding agent is doing **right now**.
 
+<p align="center">
+  <img src="docs/cast.gif" alt="Fifteen pixel characters idling side by side" width="530">
+</p>
+
 It sits in the corner of your screen, reads the session files Claude Code and
 Codex already write, and shows the tool being used, the thing it was asked for,
 and what the agent just said. When the agent finishes and it's your turn, a red
@@ -43,11 +47,17 @@ from the row in the panel — the choice is remembered.
 **Heroes** — Rook (knight, sword) · Vela (mage, staff) · Fenn (ranger, bow) ·
 Nyx (rogue, daggers) · Pip (tinker, wrench)
 
+![Heroes walking](docs/heroes.gif)
+
 **Friends** — Bunbun (rabbit, carrot) · Choco (bear, honey) · Nimbus (cloud,
 umbrella) · Momo (peach, spoon) · Mocha (coffee cup, straw)
 
+![Friends walking](docs/friends.gif)
+
 **Creatures** — Blip (slime) · Cog (robot) · Wisp (ghost) · Ember (flame) ·
 Sprout (seed)
+
+![Creatures walking](docs/creatures.gif)
 
 Each sheet has nine rows, and the row is chosen by what the agent is actually
 doing:
@@ -60,6 +70,11 @@ doing:
 | Running | `Bash` and friends |
 | Fixing | `Edit` `Write`, and everything else |
 | Answering | writing the reply |
+
+<p align="center">
+  <img src="docs/states.gif" alt="One character cycling through waiting, thinking, searching, running, fixing, answering" width="318">
+  <br><sub>waiting → thinking → searching → running → fixing → answering</sub>
+</p>
 
 ### Sprite packs
 
@@ -138,11 +153,21 @@ npm run assets
 | `make-heroes.mjs` | the heroes and friends — one humanoid rig, one entry per character |
 | `make-pets.mjs` | the creatures — silhouette functions instead of a rig |
 | `make-items.mjs` · `make-weapons.mjs` | hats and weapons for the mark-based character |
+| `make-readme-art.mjs` | the pictures on this page, cut straight from the sheets |
+
+<p align="center">
+  <img src="docs/lineup.png" alt="All fifteen characters standing still" width="530">
+</p>
 
 Drawn on a 24×26 grid and scaled 8×. The proportions aren't taste: characters
 that stay likeable share a few rules — big head, small body, **eyes low on the
 face**, blush above the cheek, no nose or fingers, cut corners. Changing one
 constant in the rig moves all nine rows of every character at once.
+
+The pictures above are baked from the same sheets the app loads — including the
+GIF encoder, which is 150 lines in `tools/gif.mjs`. A screenshot pasted into a
+README goes stale the first time someone changes a character; a generated one
+cannot.
 
 No image library. Fixing a sprite shouldn't start with an install.
 

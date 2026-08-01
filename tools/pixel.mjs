@@ -137,6 +137,79 @@ export function bakeSheet({ rows, cols, gw, gh, scale, frame }) {
   return encodePng(w, h, buf);
 }
 
+/**
+ * PNG 를 편다. 우리가 구운 시트를 다시 읽어 문서 그림으로 조립할 때 쓴다.
+ * 우리가 쓴 것만 읽으면 되므로 8비트 RGBA 만 다룬다.
+ */
+export function decodePng(buf) {
+  let p = 8;
+  let w = 0;
+  let h = 0;
+  let depth = 0;
+  let color = 0;
+  const idat = [];
+  while (p + 8 <= buf.length) {
+    const len = buf.readUInt32BE(p);
+    const type = buf.toString("ascii", p + 4, p + 8);
+    const data = buf.subarray(p + 8, p + 8 + len);
+    if (type === "IHDR") {
+      w = data.readUInt32BE(0);
+      h = data.readUInt32BE(4);
+      depth = data[8];
+      color = data[9];
+    }
+    if (type === "IDAT") idat.push(data);
+    p += 12 + len;
+  }
+  if (depth !== 8 || color !== 6) throw new Error("8비트 RGBA PNG 만 읽는다");
+  const raw = zlib.inflateSync(Buffer.concat(idat));
+  const bpp = 4;
+  const stride = w * bpp;
+  const img = Buffer.alloc(h * stride);
+  let off = 0;
+  for (let y = 0; y < h; y++) {
+    const f = raw[off++];
+    const line = raw.subarray(off, off + stride);
+    off += stride;
+    const prev = y ? img.subarray((y - 1) * stride, y * stride) : Buffer.alloc(stride);
+    const cur = img.subarray(y * stride, (y + 1) * stride);
+    for (let x = 0; x < stride; x++) {
+      const a = x >= bpp ? cur[x - bpp] : 0;
+      const b = prev[x];
+      const c = x >= bpp ? prev[x - bpp] : 0;
+      let v = line[x];
+      if (f === 1) v += a;
+      else if (f === 2) v += b;
+      else if (f === 3) v += (a + b) >> 1;
+      else if (f === 4) {
+        const pp = a + b - c;
+        const pa = Math.abs(pp - a);
+        const pb = Math.abs(pp - b);
+        const pc = Math.abs(pp - c);
+        v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+      }
+      cur[x] = v & 255;
+    }
+  }
+  return { w, h, data: img };
+}
+
+/** 셀 하나를 잘라 다른 버퍼에 얹는다. 정수 축소만 — 보간하면 픽셀이 아니게 된다. */
+export function blit(src, dst, { sx, sy, sw, sh, dx, dy, shrink = 1 }) {
+  for (let y = 0; y < sh / shrink; y++) {
+    for (let x = 0; x < sw / shrink; x++) {
+      const si = ((sy + y * shrink) * src.w + sx + x * shrink) * 4;
+      if (src.data[si + 3] < 128) continue;
+      const di = ((dy + y) * dst.w + dx + x) * 4;
+      if (di < 0 || di + 3 >= dst.data.length) continue;
+      dst.data[di] = src.data[si];
+      dst.data[di + 1] = src.data[si + 1];
+      dst.data[di + 2] = src.data[si + 2];
+      dst.data[di + 3] = 255;
+    }
+  }
+}
+
 export function writeSheet(dir, id, png) {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, `${id}.png`), png);
