@@ -12,7 +12,7 @@
  * 화면을 차지하는 펫은 귀엽지 않다.
  */
 
-const { app, BrowserWindow, ipcMain, screen, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, screen, shell, powerMonitor } = require("electron");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { liveAgents } = require("./src/reader");
@@ -63,12 +63,37 @@ function createWindow() {
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
 
   // 상태를 밀어 준다. 렌더러가 물어보지 않아도 되게 — 폴링은 한 곳에서만.
+  // 같은 내용을 다시 보내면 렌더러가 DOM 을 통째로 다시 그린다. 마우스가 올라가
+  // 있던 슬롯도 그때 사라진다 — 2초마다 툴팁이 끊기는 원인이었다. 바뀐 것이 없으면
+  // 아무것도 보내지 않는다.
+  let lastSig = "";
   const push = () => {
     if (!win || win.isDestroyed()) return;
-    win.webContents.send("agents", liveAgents());
+    const agents = liveAgents();
+    const sig = JSON.stringify(agents);
+    if (sig === lastSig) return;
+    lastSig = sig;
+    win.webContents.send("agents", agents);
   };
   push();
   timer = setInterval(push, POLL_MS);
+
+  // 화면에 없는 펫을 위해 파일을 읽을 이유가 없다. 잠자기·다른 데스크탑도 같다.
+  const resume = () => {
+    if (timer) return;
+    push();
+    timer = setInterval(push, POLL_MS);
+  };
+  const pause = () => {
+    if (timer) clearInterval(timer);
+    timer = null;
+  };
+  win.on("hide", pause);
+  win.on("minimize", pause);
+  win.on("show", resume);
+  win.on("restore", resume);
+  powerMonitor.on("suspend", pause);
+  powerMonitor.on("resume", resume);
 
   win.on("closed", () => {
     if (timer) clearInterval(timer);

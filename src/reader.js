@@ -63,6 +63,42 @@ const LIVE_WINDOW_MS = 120_000;
 const TAIL_BYTES = 96_000;
 const HEAD_BYTES = 160_000;
 
+/**
+ * 살아 있는 파일 목록 캐시.
+ *
+ * 세션 폴더에는 파일이 수천 개다(이 머신 2,693개). 2초마다 전부 `stat` 하면
+ * 가만히 떠 있는 펫이 계속 디스크를 두드린다 — 측정값으로 한 번에 62ms 였다.
+ *
+ * 그래서 **전체 훑기는 가끔**, 그 사이에는 이미 아는 파일만 확인한다. 새 세션이
+ * 15초 늦게 뜨는 것은 사람이 눈치채지 못하지만, 3%의 CPU 가 계속 도는 것은
+ * 배터리로 돌아온다.
+ */
+const RESCAN_MS = 15_000;
+// 루트마다 따로 들고 있어야 한다. 한 칸짜리로 두면 Claude 와 Codex 를 번갈아
+// 부를 때마다 서로의 캐시를 지워서 매번 전체를 훑게 된다 — 캐시가 없는 것만 못하다.
+const scanCaches = new Map();
+
+function liveFilesCached(root) {
+  const now = Date.now();
+  const cached = scanCaches.get(root);
+  if (cached && now - cached.at < RESCAN_MS) {
+    // 아는 파일만 다시 본다. 대개 한두 개다.
+    return cached.files
+      .map((f) => {
+        try {
+          const st = fs.statSync(f.path);
+          return { path: f.path, mtime: st.mtimeMs };
+        } catch {
+          return null;
+        }
+      })
+      .filter((f) => f && now - f.mtime <= LIVE_WINDOW_MS);
+  }
+  const files = liveFiles(root);
+  scanCaches.set(root, { at: now, files });
+  return files;
+}
+
 /** 최근에 쓰인 세션 파일 전부. 여러 개를 띄워 뒀으면 여러 개가 나온다. */
 function liveFiles(root, out = [], depth = 0) {
   let entries;
@@ -165,8 +201,9 @@ function countIncremental(file) {
   if (st.size > c.at) {
     const text = slice(file, c.at, st.size);
     const lines = text.split("\n");
-    // 마지막 줄은 아직 다 안 쓰였을 수 있다. 다음 번에 다시 읽는다.
-    const complete = text.endsWith("\n") ? lines : lines.slice(0, -1);
+    // 마지막 칸은 버린다. 줄이 덜 쓰였으면 다음 번에 다시 읽고, 개행으로 끝났으면
+    // 그 칸은 빈 문자열이라 세면 커서가 한 바이트 넘친다.
+    const complete = lines.slice(0, -1);
     const consumed = complete.reduce((n, l) => n + Buffer.byteLength(l) + 1, 0);
     for (const line of complete) {
       if (!line.trim()) continue;
@@ -233,134 +270,163 @@ function installedPlugins() {
 }
 
 /** 지금 무엇을 하는 중인가. 마지막 이벤트가 무엇이냐로 끝난다 — 추론하지 않는다. */
-function readClaudeCode(found) {
-  if (!found) return null;
+/**
+ * 세션 상태 캐시.
+ *
+ * 세션 앞부분(스킬·플러그인·규칙·MCP·제목)은 열릴 때 한 번 붙고 끝이다. 그런데
+ * 매 폴링마다 앞 160KB + 뒤 96KB 를 다시 읽고 파싱하고 있었다 — 실제로 늘어난
+ * 건 몇백 바이트인데.
+ *
+ * 그래서 **파일마다 상태를 들고 있다가 새로 붙은 줄만 먹인다.** 커서가 뒤로
+ * 가면(파일이 갈렸으면) 처음부터 다시 만든다.
+ */
+const sessions = new Map();
 
-  let state = "idle";
-  let tool = null;
-  let title = "";
-  let lastPrompt = null;
-  let lastSay = null;
-  let sessionId = "";
-  let at = new Date(found.mtime).toISOString();
-  const mcp = [];
-  // 위임한 에이전트 — 띄운 것에서 돌아온 것을 뺀다. 지금 몇이 밖에 나가 있는가.
-  const launched = new Set();
-  const returned = new Set();
-  // 사람이 친 프롬프트인지 기록이 직접 말해 준다. 요약 훅 같은 headless 실행은
-  // 대화방과 같은 자리에 같은 형식으로 쓰이고 그럴듯한 제목까지 달고 나온다.
-  let originAware = false;
-  let humanPrompt = false;
-  let promptCount = 0;
-  let toolCallCount = 0;
-  const skills = [];
-  const plugins = [];
-  const rules = [];
+function freshState() {
+  return {
+    at: 0, state: "idle", tool: null, title: "", lastPrompt: null, lastSay: null,
+    sessionId: "", ts: null, mcp: [], skills: [], plugins: [], rules: [],
+    launched: new Set(), returned: new Set(),
+    originAware: false, humanPrompt: false, promptCount: 0, toolCallCount: 0,
+  };
+}
 
-  for (const line of linesOf(found.path)) {
-    let o;
-    try {
-      o = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    if (typeof o.timestamp === "string") at = o.timestamp;
-    if (typeof o.sessionId === "string" && o.sessionId) sessionId = o.sessionId;
-    if (typeof o.customTitle === "string" && o.customTitle) title = o.customTitle;
-    else if (typeof o.aiTitle === "string" && o.aiTitle && !title) title = o.aiTitle;
+/** 한 줄을 상태에 반영한다. 앞부분이든 새로 붙은 줄이든 같은 코드를 지난다. */
+function feed(st, o) {
+  const push = (list, v) => { if (v && !list.includes(v)) list.push(v); };
+  if (typeof o.sessionId === "string" && o.sessionId) st.sessionId = o.sessionId;
+  if (typeof o.customTitle === "string" && o.customTitle) st.title = o.customTitle;
+  else if (typeof o.aiTitle === "string" && o.aiTitle && !st.title) st.title = o.aiTitle;
+  if (typeof o.timestamp === "string") st.ts = o.timestamp;
 
-    if (o.type === "attachment") {
-      const a = o.attachment || {};
-      if (a.type === "nested_memory" && a.path) rules.push(String(a.path));
-      if (a.type === "mcp_instructions_delta") for (const n of a.addedNames || []) mcp.push(String(n));
-      if (a.type === "skill_listing" && typeof a.content === "string") {
-        for (const l of a.content.split("\n")) {
-          const m = l.match(/^-\s*([\w:-]+):/);
-          if (!m) continue;
-          const name = m[1];
-          const at2 = name.indexOf(":");
-          if (at2 > 0) plugins.push(name.slice(0, at2));
-          else skills.push(name);
-        }
-      }
-      continue;
-    }
-
-    const msg = o.message || {};
-    const content = msg.content;
-
-    if (o.type === "user") {
-      const kind = o.origin && typeof o.origin === "object" ? o.origin.kind : null;
-      if (kind) {
-        originAware = true;
-        if (kind === "human") humanPrompt = true;
-      }
-      const raw = typeof content === "string" ? content : "";
-      if (raw.startsWith("<task-notification>")) {
-        const m = raw.match(/<tool-use-id>([^<]+)<\/tool-use-id>/);
-        if (m) returned.add(m[1]);
-      }
-      const isToolResult =
-        Array.isArray(content) && content.some((b) => b && b.type === "tool_result");
-      if (isToolResult) {
-        state = "thinking";
-        tool = null;
-      } else if (!o.isMeta && !o.sourceToolUseID) {
-        const text = textOf(content);
-        if (text && !text.startsWith("<")) {
-          promptCount += 1;
-          lastPrompt = text.slice(0, 160);
-          state = "thinking";
-          tool = null;
-        }
-      }
-    } else if (o.type === "assistant" && Array.isArray(content)) {
-      for (const b of content) {
-        if (b && b.type === "tool_use") {
-          toolCallCount += 1;
-          if (b.name === "Agent" || b.name === "Task") launched.add(b.id);
-        }
-      }
-      const call = content.find((b) => b && b.type === "tool_use");
-      // 도구를 부르기 직전에 한 말이 곧 그 도구를 부른 이유다. 말풍선에 그것을 띄운다.
-      const said = textOf(content).trim();
-      if (said) lastSay = said.slice(0, 240);
-      if (call) {
-        state = "working";
-        tool = call.name || null;
-      } else {
-        state = "answering";
-        tool = null;
+  if (o.type === "attachment") {
+    const a = o.attachment || {};
+    if (a.type === "nested_memory" && a.path) push(st.rules, String(a.path));
+    if (a.type === "mcp_instructions_delta") for (const n of a.addedNames || []) push(st.mcp, String(n));
+    if (a.type === "skill_listing" && typeof a.content === "string") {
+      for (const l of a.content.split("\n")) {
+        const m = l.match(/^-\s*([\w:-]+):/);
+        if (!m) continue;
+        const at = m[1].indexOf(":");
+        if (at > 0) push(st.plugins, m[1].slice(0, at));
+        else push(st.skills, m[1]);
       }
     }
+    return;
   }
 
-  // 마지막으로 한 일이 **답변**이었나. 알림은 이 순간에만 는다 —
-  // 도구를 돌리다 멈춘 것과 할 말을 다 하고 멈춘 것은 다른 사건이다.
-  const endedWithAnswer = state === "answering";
+  const msg = o.message || {};
+  const content = msg.content;
 
-  // 답을 다 쓰고 멈췄으면 그 순간 이미 내 차례다. 30초를 기다리면 알림이 30초
-  // 늦게 뜨고, 그때쯤이면 알림이 알려 주는 게 아니라 확인시켜 주는 게 된다.
-  // 도구를 돌리다 멈춘 것은 아직 하는 중일 수 있으므로 그대로 30초를 본다.
-  const silence = Date.now() - Date.parse(at);
-  if (silence > (endedWithAnswer ? 3_000 : 30_000)) state = "waiting";
+  if (o.type === "user") {
+    const kind = o.origin && typeof o.origin === "object" ? o.origin.kind : null;
+    if (kind) {
+      st.originAware = true;
+      if (kind === "human") st.humanPrompt = true;
+    }
+    const raw = typeof content === "string" ? content : "";
+    if (raw.startsWith("<task-notification>")) {
+      const m = raw.match(/<tool-use-id>([^<]+)<\/tool-use-id>/);
+      if (m) st.returned.add(m[1]);
+    }
+    const isToolResult =
+      Array.isArray(content) && content.some((b) => b && b.type === "tool_result");
+    if (isToolResult) {
+      st.state = "thinking";
+      st.tool = null;
+    } else if (!o.isMeta && !o.sourceToolUseID) {
+      const text = textOf(content);
+      if (text && !text.startsWith("<")) {
+        st.promptCount += 1;
+        st.lastPrompt = text.slice(0, 160);
+        st.state = "thinking";
+        st.tool = null;
+      }
+    }
+  } else if (o.type === "assistant" && Array.isArray(content)) {
+    for (const b of content) {
+      if (b && b.type === "tool_use") {
+        st.toolCallCount += 1;
+        if (b.name === "Agent" || b.name === "Task") st.launched.add(b.id);
+      }
+    }
+    const said = textOf(content).trim();
+    if (said) st.lastSay = said.slice(0, 240);
+    const call = content.find((b) => b && b.type === "tool_use");
+    if (call) {
+      st.state = "working";
+      st.tool = call.name || null;
+    } else {
+      st.state = "answering";
+      st.tool = null;
+    }
+  }
+}
 
-  const uniq = (xs) => [...new Set(xs)];
-  // 세션 목록에서 찾은 것과 설치 파일을 합친다. 어느 한쪽만 보면 놓친다.
-  const allPlugins = uniq([...plugins, ...installedPlugins()]);
-  // 스크립트가 띄운 실행은 대화방이 아니다. 판단 불가(구버전 기록)면 보여 준다 —
-  // 모른다는 것을 안다고 말하지 않는다.
-  // 구버전 기록에는 `origin` 이 없다. 그때 알아볼 수 있는 모양은 headless 한 방짜리다:
-  // 프롬프트 하나, 도구 호출 없음. 사람과 대화 중인 코드 에이전트는 도구를 잡는다.
-  const automated = originAware ? !humanPrompt : promptCount <= 1 && toolCallCount === 0;
+/** 새로 붙은 줄만 먹인다. 완성되지 않은 마지막 줄은 다음 번에 다시 본다. */
+function advance(file) {
+  let size;
+  try {
+    size = fs.statSync(file).size;
+  } catch {
+    return null;
+  }
+  let st = sessions.get(file);
+  if (!st || size < st.at) {
+    st = freshState();
+    sessions.set(file, st);
+  }
+  if (size > st.at) {
+    const text = slice(file, st.at, size);
+    // `"a\nb\n".split("\n")` 의 마지막 칸은 빈 문자열이다. 그걸 한 줄로 세면
+    // 커서가 파일 끝을 한 바이트 넘어서고, 다음 폴링이 "파일이 줄었다"고 보고
+    // 처음부터 다시 읽는다 — 증분이 통째로 무효가 된다.
+    const rows = text.split("\n");
+    const complete = rows.slice(0, -1);
+    let consumed = 0;
+    for (const line of complete) {
+      consumed += Buffer.byteLength(line) + 1;
+      if (!line.trim()) continue;
+      try {
+        feed(st, JSON.parse(line));
+      } catch {
+        /* 반쯤 쓰인 줄은 건너뛴다 */
+      }
+    }
+    st.at += consumed;
+  }
+  return st;
+}
+
+function readClaudeCode(found) {
+  if (!found) return null;
+  const st = advance(found.path);
+  if (!st) return null;
+
+  // 스크립트가 띄운 실행은 대화방이 아니다.
+  const automated = st.originAware ? !st.humanPrompt : st.promptCount <= 1 && st.toolCallCount === 0;
   if (automated) return null;
 
+  const at = st.ts || new Date(found.mtime).toISOString();
+  const endedWithAnswer = st.state === "answering";
+  const silence = Date.now() - Date.parse(at);
+  // 답을 다 쓰고 멈췄으면 그 순간 이미 내 차례다. 도구를 돌리다 멈춘 것은
+  // 아직 하는 중일 수 있으므로 그대로 30초를 본다.
+  const state = silence > (endedWithAnswer ? 3_000 : 30_000) ? "waiting" : st.state;
+
   const counts = countIncremental(found.path);
-  // 레벨은 이 세션이 아니라 **여태 쓴 전부**로 정해진다.
   const lv = levelFor(totalTokens());
+  const allPlugins = [...new Set([...st.plugins, ...installedPlugins()])];
+
   return {
     source: "claude-code",
-    sessionId,
+    sessionId: st.sessionId,
+    lastSay: st.lastSay,
+    title: st.title,
+    state,
+    tool: st.tool,
+    lastPrompt: st.lastPrompt,
+    at,
     obs: counts.obs,
     tokens: counts.tokens,
     totalTokens: totalTokens(),
@@ -368,19 +434,13 @@ function readClaudeCode(found) {
     xp: lv.xp,
     need: lv.need,
     maxed: Boolean(lv.maxed),
-    lastSay,
-    title,
-    state,
-    tool,
-    lastPrompt,
-    at,
-    mcp: uniq(mcp),
-    skills: uniq(skills),
+    mcp: [...st.mcp],
+    skills: [...st.skills],
     plugins: allPlugins,
-    rules: uniq(rules).length,
+    rules: st.rules.length,
     requests: counts.requests,
     endedWithAnswer,
-    subagents: [...launched].filter((id) => !returned.has(id)).length,
+    subagents: [...st.launched].filter((id) => !st.returned.has(id)).length,
   };
 }
 
@@ -432,10 +492,24 @@ function readCodex(found) {
  * 여러 대화방을 띄워 뒀으면 여러 개가 나온다 — 하나로 합치면 "다른 창에서 뭔가
  * 끝났다"를 알 방법이 없다. 최근에 움직인 순서로 준다.
  */
+/**
+ * 오래 보지 않은 파일의 캐시는 버린다.
+ *
+ * 며칠 켜 두면 지나간 세션마다 상태 객체가 하나씩 쌓인다. 각각 파싱된 스킬
+ * 목록과 Set 을 들고 있어서 가볍지 않다. 살아 있는 파일은 언제나 한 줌이다.
+ */
+function pruneCaches(live) {
+  const keep = new Set(live);
+  for (const map of [sessions, cursors]) {
+    if (map.size <= keep.size + 8) continue;
+    for (const k of map.keys()) if (!keep.has(k)) map.delete(k);
+  }
+}
+
 function liveAgents(limit = 4) {
   const files = [
-    ...liveFiles(CLAUDE_ROOT).map((f) => ({ f, read: readClaudeCode })),
-    ...liveFiles(CODEX_ROOT).map((f) => ({ f, read: readCodex })),
+    ...liveFilesCached(CLAUDE_ROOT).map((f) => ({ f, read: readClaudeCode })),
+    ...liveFilesCached(CODEX_ROOT).map((f) => ({ f, read: readCodex })),
   ]
     .sort((a, b) => b.f.mtime - a.f.mtime)
     .slice(0, limit);
@@ -445,6 +519,7 @@ function liveAgents(limit = 4) {
     const a = safe(() => read(f));
     if (a) out.push(a);
   }
+  pruneCaches(files.map(({ f }) => f.path));
   saveProgress();
   return out;
 }

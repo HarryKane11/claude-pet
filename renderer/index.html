@@ -475,7 +475,13 @@
         { file: "character-mark-claude-code", label: "분신", items: a.subagents ? [`${a.subagents}개 작업 중`] : [] },
       ].filter((x) => x.items.length);
 
-      q(".inv").innerHTML = slots
+      // 장비는 세션이 열릴 때 붙고 잘 안 바뀐다. 그런데 다시 그리면 마우스가 올라가
+      // 있던 슬롯이 사라져서 툴팁이 끊긴다. 내용이 실제로 달라졌을 때만 그린다.
+      const invSig = slots.map((sl) => `${sl.label}:${sl.items.length}`).join("|");
+      const invEl = q(".inv");
+      const stale = invEl.dataset.sig !== invSig;
+      if (stale) invEl.dataset.sig = invSig;
+      if (stale) invEl.innerHTML = slots
         .map((sl, k) => `<span class="slot" data-k="${k}" style="color:${TONE[k]}">
             <span class="sp" style="-webkit-mask-image:url(assets/${sl.file}.svg);mask-image:url(assets/${sl.file}.svg)"></span>
             <span style="color:#dfe5ee">${sl.label} ${sl.items.length}</span>
@@ -497,9 +503,11 @@
           ? sl.items.slice(0, 14).map(esc).join(" · ") + (sl.items.length > 14 ? ` +${sl.items.length - 14}` : "")
           : "";
       };
-      show(0);
-      for (const el of q(".inv").querySelectorAll(".slot")) {
-        el.onmouseenter = () => show(Number(el.dataset.k));
+      if (stale) {
+        show(0);
+        for (const el of invEl.querySelectorAll(".slot")) {
+          el.onmouseenter = () => show(Number(el.dataset.k));
+        }
       }
 
       // 무기 고르기 — 패널 안에서. 고른 값은 다음에도 유지된다.
@@ -508,14 +516,19 @@
           .map((it) => `<button class="wbtn${it.id === cur.id ? " on" : ""}" data-k="${key}"
             data-v="${it.id}" title="${it.label}"><img src="assets/${it.file}.svg" alt=""></button>`)
           .join("");
+      // 고를 수 있는 목록은 상수다. 고른 값이 바뀔 때만 다시 그린다.
       const picker = q(".weapons");
-      picker.innerHTML = `<div class="prow">${row(HATS, ht, "kb-hat")}</div>
-        <div class="prow">${row(WEAPONS, wp, "kb-weapon")}</div>`;
-      for (const b of picker.querySelectorAll(".wbtn")) {
-        b.onclick = (ev) => {
-          ev.stopPropagation();
-          localStorage.setItem(b.dataset.k, b.dataset.v);
-        };
+      const pickSig = `${ht.id}/${wp.id}`;
+      if (picker.dataset.sig !== pickSig) {
+        picker.dataset.sig = pickSig;
+        picker.innerHTML = `<div class="prow">${row(HATS, ht, "kb-hat")}</div>
+          <div class="prow">${row(WEAPONS, wp, "kb-weapon")}</div>`;
+        for (const b of picker.querySelectorAll(".wbtn")) {
+          b.onclick = (ev) => {
+            ev.stopPropagation();
+            localStorage.setItem(b.dataset.k, b.dataset.v);
+          };
+        }
       }
 
       // 캐릭터 클릭 = 패널 고정. 아이템을 고르는 동안 패널이 닫히면 고를 수가 없다.

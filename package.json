@@ -2,18 +2,43 @@
   "name": "claude-pet",
   "version": "0.1.0",
   "description": "A desktop pet that shows what your coding agent is doing right now — read straight from its session files.",
-  "keywords": ["claude-code", "codex", "desktop-pet", "electron", "agent"],
+  "keywords": [
+    "claude-code",
+    "codex",
+    "desktop-pet",
+    "electron",
+    "agent"
+  ],
   "license": "Apache-2.0",
   "main": "main.js",
-  "bin": { "claude-pet": "./bin/claude-pet.js" },
-  "files": ["bin", "src", "renderer", "main.js", "preload.js", "README.md"],
-  "engines": { "node": ">=20" },
+  "bin": {
+    "claude-pet": "./bin/claude-pet.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "renderer",
+    "main.js",
+    "preload.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "electron .",
-    "assets": "node make-items.mjs && node make-weapons.mjs"
+    "assets": "node make-items.mjs && node make-weapons.mjs",
+    "test": "node --test test/*.test.mjs"
   },
-  "repository": { "type": "git", "url": "git+https://github.com/HarryKane11/claude-pet.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HarryKane11/claude-pet.git"
+  },
   "homepage": "https://github.com/HarryKane11/claude-pet#readme",
-  "bugs": { "url": "https://github.com/HarryKane11/claude-pet/issues" },
-  "devDependencies": { "electron": "^38.0.0" }
+  "bugs": {
+    "url": "https://github.com/HarryKane11/claude-pet/issues"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0"
+  }
 }
