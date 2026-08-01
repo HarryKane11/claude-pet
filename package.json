@@ -18,6 +18,7 @@
     "bin",
     "src",
     "renderer",
+    "souls",
     "main.js",
     "preload.js",
     "README.md"

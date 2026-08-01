@@ -21,6 +21,8 @@ const { nextNudge, nextChatter } = require("./src/nudges");
 const settings = require("./src/settings");
 const memory = require("./src/memory");
 const curator = require("./src/curator");
+const heartbeat = require("./src/heartbeat");
+const material = require("./src/material");
 
 const POLL_MS = 2000;
 const W = 500;
@@ -158,13 +160,55 @@ ipcMain.handle("memory:reject", (_e, name, reason) => {
   memory.reject(name, reason);
   return { ok: true };
 });
-ipcMain.handle("curator:state", () => {
+/**
+ * 심장 박동.
+ *
+ * 5분마다 "지금 돌 때인가" 만 묻는다. 판단은 `HEARTBEAT.md` 에 사람이 써 둔
+ * 일정이 하고, 여기서는 부르기만 한다 — 하루에 몇 번 도는지가 곧 돈이라
+ * 그 결정을 코드 안에 숨겨 두면 안 된다.
+ */
+let beating = false;
+let booted = true;
+async function tick() {
+  if (beating) return;
+  const plan = heartbeat.load();
+  const state = curatorState();
+  const why = heartbeat.due(plan, state.lastRun || 0, Date.now(), { booted });
+  booted = false;
+  if (!why) return;
+  beating = true;
+  try {
+    const r = await curator.runOnce(await material.since(state.lastRun || 0), {
+      pet: settings.load().pet,
+    });
+    if (r && r.ok) {
+      // 새 기억 후보가 생겼으면 설정 창이 열려 있을 때 바로 보이게.
+      for (const w of BrowserWindow.getAllWindows()) w.webContents.send("curator", { why, ...r });
+    }
+  } catch {
+    /* 한 번 실패해도 다음 일정에 다시 온다 */
+  } finally {
+    beating = false;
+  }
+}
+setInterval(() => void tick(), 5 * 60_000);
+setTimeout(() => void tick(), 20_000);
+
+function curatorState() {
   try {
     return JSON.parse(require("fs").readFileSync(curator.STATE, "utf8"));
   } catch {
     return { lastRun: 0, runs: 0, cost: 0 };
   }
+}
+
+ipcMain.handle("heartbeat:get", () => ({ ...heartbeat.load(), file: heartbeat.FILE }));
+ipcMain.handle("curator:run", async () => {
+  const state = curatorState();
+  return curator.runOnce(await material.since(state.lastRun || 0), { pet: settings.load().pet });
 });
+
+ipcMain.handle("curator:state", () => curatorState());
 
 /**
  * 설정 창.

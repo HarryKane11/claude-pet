@@ -285,10 +285,41 @@ Four ideas were worth taking from the literature:
 | Promote and reject | memory-lake | Candidate → fact → rule. Rejections are logged **with a reason** — the way automatic extraction fails is not by storing wrong things but by storing anything |
 | Links | [A-MEM](https://arxiv.org/abs/2502.12110) | `[[name]]` between notes; new facts update old ones |
 
-The extraction itself runs once or twice a day through whichever coding agent you
-already have (`prompts/curator.md`). It gets no tools and no file access — the
-pet assembles the input, the agent returns JSON, the pet validates and writes.
-That way we can say exactly what left the machine.
+The extraction runs on a schedule you write yourself, in plain Korean, in
+`~/.kibitz-pet/HEARTBEAT.md`:
+
+    매일 09:00
+    매일 18:00
+    켤 때
+
+How often it wakes *is* what it costs (about $0.05 a run), so that decision
+doesn't get buried in code. Lines the parser can't read are shown back to you
+rather than dropped — a schedule silently ignored is worse than none, because
+you'd sit there waiting for it.
+
+It gets no tools and no file access. The pet assembles the input, the agent
+returns JSON, the pet validates and writes — so we can say exactly what left the
+machine.
+
+## Voice
+
+Each character talks differently. `souls/<id>.md` is a few lines of plain text —
+Rook is stiff and formal, Bunbun bubbles, Nyx drops particles entirely, Choco
+tells you there's no rush. Drop a `~/.kibitz-pet/SOUL.md` in place to override
+all of them.
+
+The same input, three characters:
+
+> **Nyx** — 안 꺼지게 해달라며. 렌더러도 심장박동도 손봐놨음
+> **Bunbun** — 렌더러 워치독 생겼다! 이제 갑자기 꺼져도 나 혼자 다시 켜질 수 있어!
+> **Choco** — 오늘은 안 꺼지고 잘 붙어있으면 좋겠다. 천천히 해도 돼, 급할 거 없어
+
+Borrowed from [OpenClaw's SOUL.md](https://capodieci.medium.com/ai-agents-003-openclaw-workspace-files-explained-soul-md-agents-md-heartbeat-md-and-more-5bdfbee4827a),
+with one change that matters: a soul here sets **how it speaks, never what it
+says**. Left unbounded, a personality file becomes a licence to make things up —
+a warm character praising work that didn't happen isn't warm, it's lying. So
+every soul is followed by that boundary, and what to say still comes from what
+was observed.
 
 ## Attribution
 

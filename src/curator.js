@@ -5,6 +5,7 @@ const os = require("os");
 const path = require("path");
 const { spawn } = require("child_process");
 const memory = require("./memory");
+const { soulFor } = require("./soul");
 
 /**
  * 큐레이터 — 하루 한두 번 지난 작업을 훑어 기억 후보와 할 말을 뽑는다.
@@ -49,7 +50,7 @@ const STATE = path.join(HOME, "curator.json");
  */
 const MODEL = process.env.KIBITZ_PET_MODEL || "claude-sonnet-5";
 
-const SYSTEM = `너는 사람의 화면 구석에 떠 있는 작은 픽셀 캐릭터다. 코드 에이전트가 아니다 —
+const BASE = `너는 사람의 화면 구석에 떠 있는 작은 픽셀 캐릭터다. 코드 에이전트가 아니다 —
 코드를 고치지도, 파일을 열지도 않는다. 옆에서 지켜본 것을 바탕으로 기억해 둘
 사실을 고르고 말을 걸 문장을 준비하는 것이 전부다.
 
@@ -93,6 +94,24 @@ JSON 하나만. 설명도 코드펜스도 없이.
 {"lines":[{"when":"waiting","text":"..."}],
  "memories":[{"name":"kebab-case","description":"한 줄","type":"user|feedback|project|reference","body":"...","supersedes":[],"sources":[]}],
  "rejected":[{"name":"...","reason":"..."}]}`;
+
+/**
+ * 규칙 + 목소리.
+ *
+ * 목소리를 따로 두는 이유는 캐릭터를 바꾸면 말투도 바뀌어야 하기 때문이다.
+ * 그림만 바뀌고 말이 똑같으면 그건 옷을 갈아입은 것이지 다른 캐릭터가 아니다.
+ *
+ * 다만 순서가 중요하다. **규칙이 먼저, 목소리가 나중**이고, 목소리 뒤에는
+ * "무엇을 말할지는 관측이 정한다" 는 경계가 붙는다(`soul.js`). 반대로 두면
+ * 인격이 규칙을 덮어써서, 다정한 캐릭터가 없는 일을 칭찬하게 된다.
+ */
+function systemFor(petId) {
+  return `${BASE}
+
+## 목소리
+
+${soulFor(petId)}`;
+}
 
 /* ── 산출물 검증 ───────────────────────────────────────────
    모델이 준 것을 그대로 파일로 만들지 않는다. 코드펜스로 감싸 오기도 하고,
@@ -174,7 +193,7 @@ function buildPayload({ prompts = [], done = [], known = [], rejected = [], rece
 
 /* ── 실행 ─────────────────────────────────────────────────── */
 
-function runClaude(payload, { model = MODEL, timeoutMs = 120_000 } = {}) {
+function runClaude(payload, { model = MODEL, timeoutMs = 120_000, pet = "" } = {}) {
   return new Promise((resolve) => {
     const args = [
       "-p",
@@ -184,7 +203,7 @@ function runClaude(payload, { model = MODEL, timeoutMs = 120_000 } = {}) {
       "--mcp-config", '{"mcpServers":{}}',
       "--setting-sources", "",
       "--model", model,
-      "--system-prompt", SYSTEM,
+      "--system-prompt", systemFor(pet),
       "--exclude-dynamic-system-prompt-sections",
     ];
     const child = spawn("claude", args, { stdio: ["pipe", "pipe", "ignore"] });
@@ -223,8 +242,8 @@ function loadState() {
  * 승인 대기열로 간다. 사람이 보지 않은 기억을 저장소에 넣지 않는 것은 규칙이다 —
  * 승인 없이 쌓인 기억은 자기 기억이 아니라 남의 기억이다.
  */
-async function runOnce(material, { model = MODEL } = {}) {
-  const res = await runClaude(buildPayload(material), { model });
+async function runOnce(material, { model = MODEL, pet = "" } = {}) {
+  const res = await runClaude(buildPayload(material), { model, pet });
   if (!res) return { ok: false, reason: "claude 를 실행하지 못했다" };
 
   const got = validate(extractJson(res.text));
@@ -249,4 +268,4 @@ async function runOnce(material, { model = MODEL } = {}) {
   return { ok: true, lines: got.lines.length, memories: got.memories.length, cost: res.cost };
 }
 
-module.exports = { runOnce, buildPayload, validate, extractJson, SYSTEM, MODEL, NOTES, STATE };
+module.exports = { runOnce, buildPayload, validate, extractJson, systemFor, BASE, MODEL, NOTES, STATE };
